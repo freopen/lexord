@@ -1,14 +1,18 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
+mod stdlib;
+
+use std::io::{Read, Write};
+
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("IO error: {0}")]
+    Io(#[from] std::io::Error),
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+pub type Result<T = ()> = std::result::Result<T, Error>;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
+pub trait OrdLex: Ord + Sized {
+    fn from_read<R: Read>(reader: &mut R) -> Result<Self>;
+    fn to_write<W: Write>(&self, writer: &mut W) -> Result;
 }
