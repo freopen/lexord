@@ -1,5 +1,5 @@
 [package]
-name = "ordlex"
+name = "lexord"
 version = "0.1.0"
 edition = "2021"
 

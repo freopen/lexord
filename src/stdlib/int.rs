@@ -1,10 +1,10 @@
 use std::io::{Read, Write};
 
-use crate::{OrdLex, Result};
+use crate::{LexOrd, Result};
 
 macro_rules! lexord_uint {
     ($t:ty) => {
-        impl OrdLex for $t {
+        impl LexOrd for $t {
             fn from_read<R: Read>(reader: &mut R) -> Result<Self> {
                 let mut buf = [0u8; std::mem::size_of::<$t>()];
                 reader.read_exact(&mut buf)?;
@@ -27,7 +27,7 @@ lexord_uint!(usize);
 
 macro_rules! lexord_int {
     ($t:ty) => {
-        impl OrdLex for $t {
+        impl LexOrd for $t {
             fn from_read<R: Read>(reader: &mut R) -> Result<Self> {
                 let mut buf = [0u8; std::mem::size_of::<$t>()];
                 reader.read_exact(&mut buf)?;

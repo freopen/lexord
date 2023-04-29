@@ -12,7 +12,7 @@ pub enum Error {
 
 pub type Result<T = ()> = std::result::Result<T, Error>;
 
-pub trait OrdLex: Ord + Sized {
+pub trait LexOrd: Ord + Sized {
     fn from_read<R: Read>(reader: &mut R) -> Result<Self>;
     fn to_write<W: Write>(&self, writer: &mut W) -> Result;
 }
