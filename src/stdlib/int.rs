@@ -1,6 +1,6 @@
 use std::io::{Read, Write};
 
-use crate::{LexOrd, Result};
+use crate::{LexOrd, LexOrdSer, Result};
 
 macro_rules! lexord_uint {
     ($t:ty) => {
@@ -10,6 +10,8 @@ macro_rules! lexord_uint {
                 reader.read_exact(&mut buf)?;
                 Ok(<$t>::from_be_bytes(buf))
             }
+        }
+        impl LexOrdSer for $t {
             fn to_write<W: Write>(&self, writer: &mut W) -> Result {
                 writer.write_all(&self.to_be_bytes())?;
                 Ok(())
@@ -33,6 +35,8 @@ macro_rules! lexord_int {
                 reader.read_exact(&mut buf)?;
                 Ok(<$t>::from_be_bytes(buf) ^ <$t>::MIN)
             }
+        }
+        impl LexOrdSer for $t {
             fn to_write<W: Write>(&self, writer: &mut W) -> Result {
                 writer.write_all(&(self ^ <$t>::MIN).to_be_bytes())?;
                 Ok(())
@@ -50,17 +54,23 @@ lexord_int!(isize);
 
 #[cfg(test)]
 mod tests {
-    use crate::helpers::tests::test_write_read;
+    use crate::helpers::tests::{test_format, test_write_read};
 
     use super::*;
 
     #[test]
     fn test_lexord_uint() -> Result {
+        test_format(&1u32, &[0x00, 0x00, 0x00, 0x01]);
         test_write_read(u16::MIN..=u16::MAX);
         Ok(())
     }
     #[test]
     fn test_lexord_int() -> Result {
+        test_format(&-1, &[0x7F, 0xFF, 0xFF, 0xFF]);
+        test_format(&0, &[0x80, 0x00, 0x00, 0x00]);
+        test_format(&1, &[0x80, 0x00, 0x00, 0x01]);
+        test_format(&i32::MIN, &[0x00, 0x00, 0x00, 0x00]);
+        test_format(&i32::MAX, &[0xFF, 0xFF, 0xFF, 0xFF]);
         test_write_read(i16::MIN..=i16::MAX);
         Ok(())
     }
