@@ -50,22 +50,18 @@ lexord_int!(isize);
 
 #[cfg(test)]
 mod tests {
+    use crate::helpers::tests::test_write_read;
+
     use super::*;
 
     #[test]
     fn test_lexord_uint() -> Result {
-        let mut buf = vec![];
-        0x01020304u32.to_write(&mut buf)?;
-        assert_eq!(buf, vec![0x01, 0x02, 0x03, 0x04]);
-        assert_eq!(u32::from_read(&mut buf.as_slice())?, 0x01020304);
+        test_write_read(u16::MIN..=u16::MAX);
         Ok(())
     }
     #[test]
     fn test_lexord_int() -> Result {
-        let mut buf = vec![];
-        0x01020304i32.to_write(&mut buf)?;
-        assert_eq!(buf, vec![0x81, 0x02, 0x03, 0x04]);
-        assert_eq!(i32::from_read(&mut buf.as_slice())?, 0x01020304);
+        test_write_read(i16::MIN..=i16::MAX);
         Ok(())
     }
 }
