@@ -22,7 +22,7 @@ impl LexOrdSer for String {
 
 #[cfg(test)]
 mod tests {
-    use crate::helpers::tests::test_format;
+    use crate::util::test::test_format;
 
     #[test]
     fn test_string_format() {

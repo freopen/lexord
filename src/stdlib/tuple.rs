@@ -22,7 +22,7 @@ gen_lexord_for_tuples!();
 
 #[cfg(test)]
 mod tests {
-    use crate::helpers::tests::test_format;
+    use crate::util::test::test_format;
 
     #[test]
     fn test_tuple() {

@@ -54,24 +54,20 @@ lexord_int!(isize);
 
 #[cfg(test)]
 mod tests {
-    use crate::helpers::tests::{test_format, test_write_read};
-
-    use super::*;
+    use crate::util::test::{test_format, test_write_read};
 
     #[test]
-    fn test_lexord_uint() -> Result {
+    fn test_lexord_uint() {
         test_format(&1u32, &[0x00, 0x00, 0x00, 0x01]);
         test_write_read(u16::MIN..=u16::MAX);
-        Ok(())
     }
     #[test]
-    fn test_lexord_int() -> Result {
+    fn test_lexord_int() {
         test_format(&-1, &[0x7F, 0xFF, 0xFF, 0xFF]);
         test_format(&0, &[0x80, 0x00, 0x00, 0x00]);
         test_format(&1, &[0x80, 0x00, 0x00, 0x01]);
         test_format(&i32::MIN, &[0x00, 0x00, 0x00, 0x00]);
         test_format(&i32::MAX, &[0xFF, 0xFF, 0xFF, 0xFF]);
         test_write_read(i16::MIN..=i16::MAX);
-        Ok(())
     }
 }

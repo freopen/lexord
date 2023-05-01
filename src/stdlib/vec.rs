@@ -1,7 +1,7 @@
 use std::io::{Read, Write};
 
 use crate::{
-    helpers::{write_iterator, ReadIter},
+    util::iterator::{write_iterator, ReadIter},
     LexOrd, LexOrdSer, Result,
 };
 
@@ -31,7 +31,7 @@ impl<T: LexOrdSer> LexOrdSer for Vec<T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::helpers::tests::{test_format, test_write_read};
+    use crate::util::test::{test_format, test_write_read};
 
     #[test]
     fn test_vec_format() {
