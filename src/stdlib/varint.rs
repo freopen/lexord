@@ -3,7 +3,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use crate::{Error, LexOrd, LexOrdSer, Result};
+use crate::{Error, LexOrd, LexOrdSer, ObjectType, Result};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct VarInt<T: Ord>(T);
@@ -30,6 +30,8 @@ impl<T: Ord> From<T> for VarInt<T> {
 macro_rules! lexord_varint_uint {
     ($t:ty) => {
         impl LexOrdSer for VarInt<$t> {
+            const OBJECT_TYPE: ObjectType<Self> = ObjectType::CantStartWithZero;
+
             fn to_write<W: Write>(&self, writer: &mut W) -> Result {
                 match self.0 as u128 {
                     0..=0x3F => (self.0 as u8 | 0x80).to_write(writer)?,
@@ -124,5 +126,13 @@ mod tests {
     #[test]
     fn test_varint_u16_all() {
         test_write_read(u16::MIN..=u16::MAX);
+    }
+
+    #[test]
+    fn test_vec_varint() {
+        test_format(
+            &vec![VarInt(0u8), VarInt(1u8), VarInt(2u8)],
+            &[0x80, 0x81, 0x82, 0x00],
+        );
     }
 }
