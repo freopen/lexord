@@ -3,10 +3,11 @@ use std::{
     marker::PhantomData,
 };
 
-use crate::{Error, LexOrd, LexOrdSer, Result};
+use crate::{Error, LexOrd, LexOrdSer, ObjectType, Result};
 
 pub struct ReadIter<'a, R: Read, T: LexOrd> {
     reader: &'a mut R,
+    zero_sized_count: Option<u64>,
     _phantom: PhantomData<T>,
 }
 
@@ -14,6 +15,7 @@ impl<'a, R: Read, T: LexOrd> ReadIter<'a, R, T> {
     pub fn new(reader: &'a mut R) -> ReadIter<'a, R, T> {
         ReadIter {
             reader,
+            zero_sized_count: None,
             _phantom: PhantomData,
         }
     }
@@ -23,24 +25,36 @@ impl<'a, R: Read, T: LexOrd> Iterator for ReadIter<'a, R, T> {
     type Item = Result<T>;
     fn next(&mut self) -> Option<Self::Item> {
         (|| {
-            let mut first = [0];
-            self.reader.read_exact(&mut first)?;
-            match first[0] {
-                0x00 => Ok(None),
-                0x01 => {
-                    let mut second = [0];
-                    self.reader.read_exact(&mut second)?;
-                    if second[0] > 0x01 {
-                        return Err(Error::Parse(
-                            "Iterator element can't start with 0x01{0x02+}".to_string(),
-                        ));
-                    }
-                    let mut reader = second.chain(self.reader.by_ref());
-                    Ok(Some(T::from_read(&mut reader)?))
+            if let ObjectType::ZeroSized(zero_fn) = T::OBJECT_TYPE {
+                if self.zero_sized_count.is_none() {
+                    self.zero_sized_count = Some(u64::from_read(self.reader)?);
                 }
-                _ => {
-                    let mut reader = first.chain(self.reader.by_ref());
-                    Ok(Some(T::from_read(&mut reader)?))
+                if self.zero_sized_count.unwrap() == 0 {
+                    Ok(None)
+                } else {
+                    self.zero_sized_count = Some(self.zero_sized_count.unwrap() - 1);
+                    Ok(Some(zero_fn()))
+                }
+            } else {
+                let mut first = [0];
+                self.reader.read_exact(&mut first)?;
+                match (first[0], T::OBJECT_TYPE) {
+                    (0x00, _) => Ok(None),
+                    (0x01, ObjectType::Default) => {
+                        let mut second = [0];
+                        self.reader.read_exact(&mut second)?;
+                        if second[0] > 0x01 {
+                            return Err(Error::Parse(
+                                "Iterator element can't start with 0x01{0x02+}".to_string(),
+                            ));
+                        }
+                        let mut reader = second.chain(self.reader.by_ref());
+                        Ok(Some(T::from_read(&mut reader)?))
+                    }
+                    _ => {
+                        let mut reader = first.chain(self.reader.by_ref());
+                        Ok(Some(T::from_read(&mut reader)?))
+                    }
                 }
             }
         })()
@@ -76,15 +90,28 @@ pub fn write_iterator<'a, T: LexOrdSer + 'a>(
     writer: &mut impl Write,
     iter: &mut impl Iterator<Item = &'a T>,
 ) -> Result {
-    let mut iter_writer = IterWriter {
-        writer,
-        item_started: false,
-    };
-    for item in iter {
-        item.to_write(&mut iter_writer)?;
-        iter_writer.item_started = false;
+    match T::OBJECT_TYPE {
+        ObjectType::Default => {
+            let mut iter_writer = IterWriter {
+                writer,
+                item_started: false,
+            };
+            for item in iter {
+                item.to_write(&mut iter_writer)?;
+                iter_writer.item_started = false;
+            }
+            writer.write_all(&[0x00])?;
+        }
+        ObjectType::CantStartWithZero => {
+            for item in iter {
+                item.to_write(writer)?;
+            }
+            writer.write_all(&[0x00])?;
+        }
+        ObjectType::ZeroSized(_) => {
+            (iter.count() as u64).to_write(writer)?;
+        }
     }
-    writer.write_all(&[0x00])?;
     Ok(())
 }
 
