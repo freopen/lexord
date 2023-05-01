@@ -1,9 +1,14 @@
 mod stdlib;
 mod util;
 
-use std::io::{Read, Write};
+use std::{
+    convert::Infallible,
+    io::{Read, Write},
+};
 
 use thiserror::Error;
+
+pub use stdlib::varint::VarInt;
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -11,8 +16,16 @@ pub enum Error {
     Io(#[from] std::io::Error),
     #[error("UTF-8 error: {0}")]
     Utf8(#[from] std::string::FromUtf8Error),
+    #[error("Int parse error: {0}")]
+    FromInt(#[from] std::num::TryFromIntError),
     #[error("Parse error: {0}")]
     Parse(String),
+}
+
+impl From<Infallible> for Error {
+    fn from(_: Infallible) -> Self {
+        unreachable!()
+    }
 }
 
 pub type Result<T = ()> = std::result::Result<T, Error>;

@@ -1,13 +1,14 @@
 use std::{
     io::{Read, Write},
     marker::PhantomData,
+    ops::Deref,
 };
 
-use crate::{Error, LexOrd, LexOrdSer, ObjectType, Result};
+use crate::{Error, LexOrd, LexOrdSer, ObjectType, Result, VarInt};
 
 pub struct ReadIter<'a, R: Read, T: LexOrd> {
     reader: &'a mut R,
-    zero_sized_count: Option<u64>,
+    zero_sized_count: Option<usize>,
     _phantom: PhantomData<T>,
 }
 
@@ -27,7 +28,7 @@ impl<'a, R: Read, T: LexOrd> Iterator for ReadIter<'a, R, T> {
         (|| {
             if let ObjectType::ZeroSized(zero_fn) = T::OBJECT_TYPE {
                 if self.zero_sized_count.is_none() {
-                    self.zero_sized_count = Some(u64::from_read(self.reader)?);
+                    self.zero_sized_count = Some(*VarInt::<usize>::from_read(self.reader)?.deref());
                 }
                 if self.zero_sized_count.unwrap() == 0 {
                     Ok(None)
@@ -109,7 +110,7 @@ pub fn write_iterator<'a, T: LexOrdSer + 'a>(
             writer.write_all(&[0x00])?;
         }
         ObjectType::ZeroSized(_) => {
-            (iter.count() as u64).to_write(writer)?;
+            (VarInt::from(iter.count())).to_write(writer)?;
         }
     }
     Ok(())
