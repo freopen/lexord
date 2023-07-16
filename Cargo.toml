@@ -7,6 +7,5 @@ edition = "2021"
 members = ["lexord_derive"]
 
 [dependencies]
-impl-trait-for-tuples = "0.2.2"
 thiserror = "1.0.40"
 lexord_derive = { version = "0.1.0", path = "lexord_derive" }

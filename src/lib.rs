@@ -34,14 +34,14 @@ pub trait LexOrd: Ord + Sized + LexOrdSer {
     fn from_read<R: Read>(reader: &mut R) -> Result<Self>;
 }
 
-pub enum ObjectType<T: ?Sized> {
+pub enum ObjectType {
     Default,
     CantStartWithZero,
-    ZeroSized(fn() -> T),
+    ZeroSized,
 }
 
 pub trait LexOrdSer: Ord {
-    const OBJECT_TYPE: ObjectType<Self> = ObjectType::Default;
+    const OBJECT_TYPE: ObjectType = ObjectType::Default;
 
     fn to_write<W: Write>(&self, writer: &mut W) -> Result;
 }

@@ -5,7 +5,7 @@ use lexord_derive::gen_lexord_for_tuples;
 use crate::{LexOrd, LexOrdSer, ObjectType, Result};
 
 impl LexOrdSer for () {
-    const OBJECT_TYPE: ObjectType<Self> = ObjectType::ZeroSized(|| ());
+    const OBJECT_TYPE: ObjectType = ObjectType::ZeroSized;
 
     fn to_write<W: Write>(&self, _writer: &mut W) -> Result {
         Ok(())

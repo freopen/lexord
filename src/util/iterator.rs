@@ -26,7 +26,7 @@ impl<'a, R: Read, T: LexOrd> Iterator for ReadIter<'a, R, T> {
     type Item = Result<T>;
     fn next(&mut self) -> Option<Self::Item> {
         (|| {
-            if let ObjectType::ZeroSized(zero_fn) = T::OBJECT_TYPE {
+            if let ObjectType::ZeroSized = T::OBJECT_TYPE {
                 if self.zero_sized_count.is_none() {
                     self.zero_sized_count = Some(*VarInt::<usize>::from_read(self.reader)?.deref());
                 }
@@ -34,7 +34,7 @@ impl<'a, R: Read, T: LexOrd> Iterator for ReadIter<'a, R, T> {
                     Ok(None)
                 } else {
                     self.zero_sized_count = Some(self.zero_sized_count.unwrap() - 1);
-                    Ok(Some(zero_fn()))
+                    Ok(Some(T::from_read(self.reader)?))
                 }
             } else {
                 let mut first = [0];
@@ -109,7 +109,7 @@ pub fn write_iterator<'a, T: LexOrdSer + 'a>(
             }
             writer.write_all(&[0x00])?;
         }
-        ObjectType::ZeroSized(_) => {
+        ObjectType::ZeroSized => {
             (VarInt::from(iter.count())).to_write(writer)?;
         }
     }

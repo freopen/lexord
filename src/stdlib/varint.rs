@@ -30,7 +30,7 @@ impl<T: Ord> From<T> for VarInt<T> {
 macro_rules! lexord_varint_uint {
     ($t:ty) => {
         impl LexOrdSer for VarInt<$t> {
-            const OBJECT_TYPE: ObjectType<Self> = ObjectType::CantStartWithZero;
+            const OBJECT_TYPE: ObjectType = ObjectType::CantStartWithZero;
 
             fn to_write<W: Write>(&self, writer: &mut W) -> Result {
                 match self.0 as u128 {
