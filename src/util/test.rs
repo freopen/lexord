@@ -12,7 +12,7 @@ pub fn test_format<T: LexOrd + Debug>(value: &T, buf: &[u8]) {
     let value_from_buf = T::from_read(&mut buf_from_value.as_slice()).unwrap();
     assert!(
         value == &value_from_buf,
-        "{buf:?} -> {value:?} != {value_from_buf:?}"
+        "{buf:x?} -> {value_from_buf:?} != {value:?}"
     );
 }
 

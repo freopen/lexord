@@ -8,8 +8,6 @@ use std::{
 
 use thiserror::Error;
 
-pub use stdlib::varint::VarInt;
-
 #[derive(Error, Debug)]
 pub enum Error {
     #[error("IO error: {0}")]
