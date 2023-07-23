@@ -28,7 +28,7 @@ impl From<Infallible> for Error {
 
 pub type Result<T = ()> = std::result::Result<T, Error>;
 
-pub trait LexOrd: Ord + Sized + LexOrdSer {
+pub trait LexOrd: Sized + LexOrdSer {
     fn from_read<R: Read>(reader: &mut R) -> Result<Self>;
 }
 
@@ -38,7 +38,7 @@ pub enum ObjectType {
     ZeroSized,
 }
 
-pub trait LexOrdSer: Ord {
+pub trait LexOrdSer: PartialOrd {
     const OBJECT_TYPE: ObjectType = ObjectType::Default;
 
     fn to_write<W: Write>(&self, writer: &mut W) -> Result;
