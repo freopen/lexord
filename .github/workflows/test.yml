@@ -15,11 +15,13 @@ jobs:
       - uses: mozilla-actions/sccache-action@v0.0.3
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
+          toolchain: nightly
           components: clippy
           profile: minimal
           override: true
       - run: cargo test --all
+      - run: cargo install cargo-fuzz
+      - run: cargo fuzz run vec_test -- -runs=10000
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
