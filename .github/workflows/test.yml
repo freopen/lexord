@@ -25,7 +25,7 @@ jobs:
         with:
           path: fuzz/corpus
           key: fuzz-corpus
-      - run: cargo fuzz run vec_test -- -runs=10000 -max_len=100000000
+      - run: cargo fuzz run vec_test -- -max_total_time=30 -max_len=100000000 -len_control=0
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
