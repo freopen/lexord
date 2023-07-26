@@ -21,7 +21,15 @@ jobs:
           override: true
       - run: cargo test --all
       - run: cargo install cargo-fuzz
+      - uses: actions/cache/restore@v3
+        with:
+          path: fuzz/corpus
+          key: fuzz-corpus
       - run: cargo fuzz run vec_test -- -runs=10000
+      - uses: actions/cache/save@v3
+        with:
+          path: fuzz/corpus
+          key: fuzz-corpus
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
