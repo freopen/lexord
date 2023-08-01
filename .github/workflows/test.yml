@@ -20,7 +20,6 @@ jobs:
           profile: minimal
           override: true
       - run: cargo test --all
-      - run: sudo apt install -y binutils-dev libunwind-dev
       - run: cargo install cargo-bolero
       - uses: actions/cache/restore@v3
         with:
