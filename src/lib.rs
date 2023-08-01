@@ -1,6 +1,8 @@
 mod stdlib;
 mod util;
 
+pub use lexord_derive::LexOrd;
+
 use std::{
     convert::Infallible,
     io::{Read, Write},
@@ -36,6 +38,17 @@ pub enum ObjectType {
     Default,
     CantStartWithZero,
     ZeroSized,
+}
+
+impl ObjectType {
+    pub const fn sequence_type(seq: &[ObjectType]) -> ObjectType {
+        match seq {
+            [] => ObjectType::ZeroSized,
+            [ObjectType::CantStartWithZero, ..] => ObjectType::CantStartWithZero,
+            [ObjectType::Default, ..] => ObjectType::Default,
+            [ObjectType::ZeroSized, rest @ ..] => ObjectType::sequence_type(rest),
+        }
+    }
 }
 
 pub trait LexOrdSer: PartialOrd {

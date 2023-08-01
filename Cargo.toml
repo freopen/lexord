@@ -9,3 +9,10 @@ members = ["lexord_derive"]
 [dependencies]
 thiserror = "1.0.40"
 lexord_derive = { version = "0.1.0", path = "lexord_derive" }
+
+[dev-dependencies]
+bolero = "0.9.0"
+
+[[test]]
+name = "type_test"
+harness = false

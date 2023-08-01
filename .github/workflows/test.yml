@@ -20,13 +20,15 @@ jobs:
           profile: minimal
           override: true
       - run: cargo test --all
-      - run: cargo install cargo-fuzz
+      - run: sudo apt install -y binutils-dev libunwind-dev
+      - run: cargo install cargo-bolero
       - uses: actions/cache@v3
         with:
-          path: fuzz/corpus
+          path: tests/type_test/corpus
           key: fuzz-corpus-${{ github.run_id }}
           restore-keys: fuzz-corpus
-      - run: cargo fuzz run vec_test -- -max_total_time=30 -max_len=100000000 -len_control=0
+      - run: cargo bolero test type_test -T 10min
+      - run: cargo bolero reduce type_test
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
