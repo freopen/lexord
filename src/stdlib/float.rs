@@ -4,6 +4,10 @@ use crate::{LexOrd, LexOrdSer, Result};
 
 impl LexOrdSer for f32 {
     fn to_write<W: Write>(&self, writer: &mut W) -> Result {
+        if self == &0.0 {
+            writer.write_all(&[0x80, 0x00, 0x00, 0x00])?;
+            return Ok(());
+        }
         let mut bits = self.to_bits();
         bits ^= 0x80000000 | (((bits as i32) >> 31) as u32);
         writer.write_all(&bits.to_be_bytes())?;
@@ -23,6 +27,10 @@ impl LexOrd for f32 {
 
 impl LexOrdSer for f64 {
     fn to_write<W: Write>(&self, writer: &mut W) -> Result {
+        if self == &0.0 {
+            writer.write_all(&[0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])?;
+            return Ok(());
+        }
         let mut bits = self.to_bits();
         bits ^= 0x8000000000000000 | (((bits as i64) >> 63) as u64);
         writer.write_all(&bits.to_be_bytes())?;

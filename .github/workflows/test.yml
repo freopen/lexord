@@ -26,7 +26,7 @@ jobs:
         with:
           path: tests/type_test/corpus
           key: fuzz-corpus-${{ github.run_id }}
-          restore-keys: fuzz-corpus
+          restore-keys: fuzz-corpus-
       - run: cargo bolero test type_test -T 10min
       - run: cargo bolero reduce type_test
       - uses: actions-rs/clippy-check@v1
