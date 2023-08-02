@@ -31,27 +31,17 @@ impl<T: LexOrdSer> LexOrdSer for Vec<T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::util::test::{test_format, test_write_read};
+    use insta::assert_snapshot;
+
+    use crate::util::test::encode;
 
     #[test]
     fn test_vec_format() {
-        test_format(&Vec::<u16>::new(), &[0x00]);
-        test_format(&vec![0u16], &[0x80, 0x00]);
-        test_format(&vec![1u16], &[0x81, 0x00]);
-        test_format(&vec![0x0100u16], &[0xC1, 0x00, 0x00]);
-        test_format(&vec![0x0200u16], &[0xC2, 0x00, 0x00]);
-        test_format(&vec![0u8, 1u8, 2u8], &[0x01, 0x00, 0x01, 0x01, 0x02, 0x00]);
-        test_format(&vec![(), (), ()], &[0x83]);
-    }
-
-    #[test]
-    fn test_order() {
-        let mut values = vec![];
-        values.push(vec![]);
-        values.extend((i8::MIN..=i8::MAX).map(|x| vec![x]));
-        values
-            .extend((i8::MIN..=i8::MAX).flat_map(|x| (i8::MIN..=i8::MAX).map(move |y| vec![x, y])));
-        values.sort();
-        test_write_read(values.into_iter());
+        assert_snapshot!(encode(<Vec<()>>::new()), @"80");
+        assert_snapshot!(encode(<Vec<u8>>::new()), @"00");
+        assert_snapshot!(encode(<Vec<u16>>::new()), @"00");
+        assert_snapshot!(encode(vec![()]), @"81");
+        assert_snapshot!(encode(vec![0u8, 1u8, 2u8, 3u8]), @"01 00 01 01 02 03 00");
+        assert_snapshot!(encode(vec![0u16, 1u16, 2u16, 3u16]), @"80 81 82 83 00");
     }
 }

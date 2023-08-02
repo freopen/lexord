@@ -50,51 +50,37 @@ impl LexOrd for f64 {
 
 #[cfg(test)]
 mod tests {
-    use crate::util::test::{test_format, test_write_read};
+    use insta::assert_snapshot;
+
+    use crate::util::test::encode;
 
     #[test]
     fn test_f32() {
-        test_format(&0f32, &[0x80, 0x00, 0x00, 0x00]);
-        test_format(&-0f32, &[0x80, 0x00, 0x00, 0x00]);
-        test_format(&1f32, &[0xBF, 0x80, 0x00, 0x00]);
-        test_format(&-1f32, &[0x40, 0x7F, 0xFF, 0xFF]);
-        test_write_read(
-            [
-                -1.624235e20f32,
-                -1.4e10f32,
-                -1f32,
-                -0f32,
-                1e-21f32,
-                0.1209123f32,
-                1f32,
-                1e10f32,
-                1e20f32,
-            ]
-            .into_iter(),
-        );
+        assert_snapshot!(encode(0f32), @"80 00 00 00");
+        assert_snapshot!(encode(-0f32), @"80 00 00 00");
+        assert_snapshot!(encode(1f32), @"BF 80 00 00");
+        assert_snapshot!(encode(-1f32), @"40 7F FF FF");
+        assert_snapshot!(encode(f32::NAN), @"FF C0 00 00");
+        assert_snapshot!(encode(f32::INFINITY), @"FF 80 00 00");
+        assert_snapshot!(encode(f32::NEG_INFINITY), @"00 7F FF FF");
+        assert_snapshot!(encode(f32::EPSILON), @"B4 00 00 00");
+        assert_snapshot!(encode(f32::MAX), @"FF 7F FF FF");
+        assert_snapshot!(encode(f32::MIN), @"00 80 00 00");
+        assert_snapshot!(encode(f32::MIN_POSITIVE), @"80 80 00 00");
     }
 
     #[test]
     fn test_f64() {
-        test_format(&0f64, &[0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
-        test_format(&-0f64, &[0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
-        test_format(&1f64, &[0xBF, 0xF0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
-        test_format(&-1f64, &[0x40, 0x0F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]);
-        test_write_read(
-            [
-                -1e100f64,
-                -1.624235e20f64,
-                -1.4e10f64,
-                -1f64,
-                -0f64,
-                1e-21f64,
-                0.1209123f64,
-                1f64,
-                1e10f64,
-                1e20f64,
-                1e100f64,
-            ]
-            .into_iter(),
-        );
+        assert_snapshot!(encode(0f64), @"80 00 00 00 00 00 00 00");
+        assert_snapshot!(encode(-0f64), @"80 00 00 00 00 00 00 00");
+        assert_snapshot!(encode(1f64), @"BF F0 00 00 00 00 00 00");
+        assert_snapshot!(encode(-1f64), @"40 0F FF FF FF FF FF FF");
+        assert_snapshot!(encode(f64::NAN), @"FF F8 00 00 00 00 00 00");
+        assert_snapshot!(encode(f64::INFINITY), @"FF F0 00 00 00 00 00 00");
+        assert_snapshot!(encode(f64::NEG_INFINITY), @"00 0F FF FF FF FF FF FF");
+        assert_snapshot!(encode(f64::EPSILON), @"BC B0 00 00 00 00 00 00");
+        assert_snapshot!(encode(f64::MAX), @"FF EF FF FF FF FF FF FF");
+        assert_snapshot!(encode(f64::MIN), @"00 10 00 00 00 00 00 00");
+        assert_snapshot!(encode(f64::MIN_POSITIVE), @"80 10 00 00 00 00 00 00");
     }
 }

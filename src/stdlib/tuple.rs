@@ -22,19 +22,15 @@ gen_lexord_for_tuples!();
 
 #[cfg(test)]
 mod tests {
-    use crate::util::test::test_format;
+    use insta::assert_snapshot;
+
+    use crate::util::test::encode;
 
     #[test]
     fn test_tuple() {
-        test_format(&(), &[]);
-        test_format(&(1u8, 2u8, 3u8), &[0x01, 0x02, 0x03]);
-        test_format(
-            &((), ((), 1u8, ()), ((), (), ()), 2u8, 3u8),
-            &[0x01, 0x02, 0x03],
-        );
-        test_format(
-            &("abc".to_string(), 2u8, 3u8),
-            &[0x61, 0x62, 0x63, 0x00, 0x02, 0x03],
-        );
+        assert_snapshot!(encode(()), @"");
+        assert_snapshot!(encode((1u8, 2u8, 3u8)), @"01 02 03");
+        assert_snapshot!(encode(((), ((), 1u8, ()), ((), (), ()), 2u8, 3u8)), @"01 02 03");
+        assert_snapshot!(encode(("abc".to_string(), 2u8, 3u8)), @"61 62 63 00 02 03");
     }
 }

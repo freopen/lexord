@@ -177,54 +177,73 @@ lexord_int!(isize);
 
 #[cfg(test)]
 mod tests {
-    use crate::util::test::{test_format, test_write_read};
+    use insta::assert_snapshot;
+
+    use crate::util::test::encode;
 
     #[test]
     fn test_u8() {
-        test_format(&0u8, &[0x00]);
-        test_format(&1u8, &[0x01]);
-        test_format(&u8::MIN, &[0x00]);
-        test_format(&u8::MAX, &[0xFF]);
-        test_write_read(u8::MIN..=u8::MAX);
+        assert_snapshot!(encode(0u8), @"00");
+        assert_snapshot!(encode(1u8), @"01");
+        assert_snapshot!(encode(10u8), @"0A");
+        assert_snapshot!(encode(254u8), @"FE");
+        assert_snapshot!(encode(255u8), @"FF");
     }
 
     #[test]
     fn test_i8() {
-        test_format(&0i8, &[0x80]);
-        test_format(&1i8, &[0x81]);
-        test_format(&-1i8, &[0x7F]);
-        test_format(&i8::MIN, &[0x00]);
-        test_format(&i8::MAX, &[0xFF]);
-        test_write_read(i8::MIN..=i8::MAX);
+        assert_snapshot!(encode(0i8), @"80");
+        assert_snapshot!(encode(1i8), @"81");
+        assert_snapshot!(encode(10i8), @"8A");
+        assert_snapshot!(encode(126i8), @"FE");
+        assert_snapshot!(encode(127i8), @"FF");
+        assert_snapshot!(encode(-128i8), @"00");
+        assert_snapshot!(encode(-127i8), @"01");
     }
 
-    #[test]
-    fn test_uint() {
-        test_format(&1u16, &[0x81]);
-        test_format(&128u16, &[0xC0, 0x80]);
-        test_format(&u32::MAX, &[0xF0, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF]);
-        test_format(
-            &u128::MAX,
-            &[
-                0xf8, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-                0xFF, 0xFF, 0xFF,
-            ],
-        );
-        test_write_read(u16::MIN..=u16::MAX);
+    macro_rules! gen_encode_varint {
+        ($($t:ty)+) => {
+            fn encode_varint<T: Copy $(+ TryInto<$t>)*>(value: T) -> String {
+                let mut buf = vec![];
+                $(
+                    if let Ok(typed) = TryInto::<$t>::try_into(value) {
+                        buf.push(encode(typed));
+                    }
+                )*
+                buf.dedup();
+                assert_eq!(buf.len(), 1, "{buf:?}");
+                buf.pop().unwrap()
+            }
+
+        };
     }
+    gen_encode_varint!(u16 u32 u64 u128 usize i16 i32 i64 i128 isize);
+
     #[test]
-    fn test_int() {
-        test_format(&-1i16, &[0x7F]);
-        test_format(&0i16, &[0x80]);
-        test_format(&i32::MIN, &[0x0F, 0xFF, 0xFF, 0xFF, 0x80, 0x00, 0x00, 0x00]);
-        test_format(&i32::MAX, &[0xF0, 0x00, 0x00, 0x00, 0x7F, 0xFF, 0xFF, 0xFF]);
-        test_format(
-            &i128::MIN,
-            &[
-                0x04, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00,
-            ],
-        );
-        test_write_read(i16::MIN..=i16::MAX);
+    fn test_varint() {
+        assert_snapshot!(encode_varint(0), @"80");
+        assert_snapshot!(encode_varint(1), @"81");
+        assert_snapshot!(encode_varint(-1), @"7F");
+        assert_snapshot!(encode_varint(u8::MAX), @"C0 FF");
+        assert_snapshot!(encode_varint(u16::MAX), @"E0 00 FF FF");
+        assert_snapshot!(encode_varint(u32::MAX), @"F0 00 00 00 FF FF FF FF");
+        assert_snapshot!(encode_varint(u64::MAX),
+                         @"F8 00 00 00 00 00 00 00 00 FF FF FF FF FF FF FF FF");
+        assert_snapshot!(encode_varint(u128::MAX),
+                         @"F8 FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF");
+        assert_snapshot!(encode_varint(i8::MAX), @"C0 7F");
+        assert_snapshot!(encode_varint(i16::MAX), @"E0 00 7F FF");
+        assert_snapshot!(encode_varint(i32::MAX), @"F0 00 00 00 7F FF FF FF");
+        assert_snapshot!(encode_varint(i64::MAX),
+                         @"F8 00 00 00 00 00 00 00 00 7F FF FF FF FF FF FF FF");
+        assert_snapshot!(encode_varint(i128::MAX),
+                         @"F8 7F FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF");
+        assert_snapshot!(encode_varint(i8::MIN), @"3F 80");
+        assert_snapshot!(encode_varint(i16::MIN), @"1F FF 80 00");
+        assert_snapshot!(encode_varint(i32::MIN), @"0F FF FF FF 80 00 00 00");
+        assert_snapshot!(encode_varint(i64::MIN),
+                         @"04 FF FF FF FF FF FF FF FF 80 00 00 00 00 00 00 00");
+        assert_snapshot!(encode_varint(i128::MIN),
+                         @"04 80 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00");
     }
 }

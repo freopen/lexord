@@ -22,11 +22,15 @@ impl LexOrdSer for String {
 
 #[cfg(test)]
 mod tests {
-    use crate::util::test::test_format;
+    use insta::assert_snapshot;
+
+    use crate::util::test::encode;
 
     #[test]
     fn test_string_format() {
-        test_format(&String::new(), &[0x00]);
-        test_format(&"123".to_string(), &[0x31, 0x32, 0x33, 0x00]);
+        assert_snapshot!(encode("".to_string()), @"00");
+        assert_snapshot!(encode("abc".to_string()), @"61 62 63 00");
+        assert_snapshot!(encode("\0".to_string()), @"01 00 00");
+        assert_snapshot!(encode("\x01".to_string()), @"01 01 00");
     }
 }
