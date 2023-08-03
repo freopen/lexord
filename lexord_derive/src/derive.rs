@@ -4,9 +4,14 @@ use syn::DeriveInput;
 
 pub fn derive_lexord(input: DeriveInput) -> TokenStream {
     let name = input.ident;
-    match input.data {
+    let derives = match input.data {
         syn::Data::Struct(data) => derive_struct(name, data),
         _ => unimplemented!(),
+    };
+    quote! {
+        const _: () = {
+            #derives
+        };
     }
 }
 
@@ -25,6 +30,7 @@ fn derive_struct(name: syn::Ident, data: syn::DataStruct) -> TokenStream {
         })
         .unzip();
     quote! {
+        #[automatically_derived]
         impl PartialEq for #name
         where
             #( #types: PartialEq ),*
@@ -34,12 +40,13 @@ fn derive_struct(name: syn::Ident, data: syn::DataStruct) -> TokenStream {
             }
         }
 
+        #[automatically_derived]
         impl PartialOrd for #name
         where
             #( #types: PartialOrd ),*
         {
             fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-                #( match #types::partial_cmp(&self.#fields, &other.#fields)? {
+                #( match <#types as PartialOrd<#types>>::partial_cmp(&self.#fields, &other.#fields)? {
                     std::cmp::Ordering::Equal => {}
                     ordering => { return Some(ordering); }
                 } )*
@@ -47,6 +54,7 @@ fn derive_struct(name: syn::Ident, data: syn::DataStruct) -> TokenStream {
             }
         }
 
+        #[automatically_derived]
         impl ::lexord::LexOrdSer for #name
         where
             #( #types: LexOrdSer ),*
@@ -62,6 +70,7 @@ fn derive_struct(name: syn::Ident, data: syn::DataStruct) -> TokenStream {
             }
         }
 
+        #[automatically_derived]
         impl ::lexord::LexOrd for #name
         where
             #( #types: LexOrd ),*

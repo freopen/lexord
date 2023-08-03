@@ -20,6 +20,9 @@ struct Test {
     t_f32: f32,
     t_f64: f64,
     t_string: String,
+    t_vec_u8: Vec<u8>,
+    t_vec_u16: Vec<u16>,
+    t_vec_unit: Vec<()>,
 }
 
 fn main() {
