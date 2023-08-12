@@ -1,5 +1,5 @@
 mod stdlib;
-mod util;
+pub mod util;
 
 pub use lexord_derive::LexOrd;
 
