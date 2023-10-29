@@ -20,20 +20,6 @@ jobs:
           profile: minimal
           override: true
       - run: cargo test --all
-      - run: cargo install cargo-bolero
-      - uses: actions/cache/restore@v3
-        with:
-          path: tests/type_test/corpus
-          key: fuzz-corpus-${{ github.run_id }}
-          restore-keys: |
-            fuzz-corpus-
-      - run: cargo bolero test type_test -T 10min
-      - run: cargo bolero reduce type_test
-      - uses: actions/cache/save@v3
-        if: always()
-        with:
-          path: tests/type_test/corpus
-          key: fuzz-corpus-${{ github.run_id }}
       - uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}

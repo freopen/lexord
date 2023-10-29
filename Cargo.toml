@@ -4,16 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace]
-members = ["lexord_derive"]
+members = ["lexord_derive", "fuzz"]
 
 [dependencies]
 thiserror = "1.0.40"
 lexord_derive = { version = "0.1.0", path = "lexord_derive" }
 
 [dev-dependencies]
-bolero = "0.9.0"
+afl = "0.14.3"
+arbitrary = { version = "1.3.1", features = ["derive"] }
 insta = "1.31.0"
-
-[[test]]
-name = "type_test"
-harness = false
