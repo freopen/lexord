@@ -1,0 +1,31 @@
+[config]
+default_to_workspace = false
+
+[tasks.build]
+command = "cargo"
+args = ["build"]
+
+[tasks.fuzz-prepare]
+script = ["cargo install --force cargo-afl", "cargo afl system-config"]
+
+[tasks.fuzz-build]
+command = "cargo"
+args = ["afl", "build"]
+cwd = "./fuzz"
+
+[tasks.fuzz-run]
+command = "cargo"
+args = [
+    "afl",
+    "fuzz",
+    "-i",
+    "fuzz/corpus",
+    "-o",
+    "fuzz/tmp_fuzz_wd",
+    "target/debug/lexord-fuzz",
+]
+dependencies = ["fuzz-build"]
+ignore_errors = true
+
+[tasks.fuzz-min]
+script = { file = "fuzz-min.sh" }

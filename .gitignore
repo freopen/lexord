@@ -1,4 +1,3 @@
 /target/
 /Cargo.lock
-/tests/*/corpus/
-/tests/*/crashes/
+/fuzz/tmp_*
