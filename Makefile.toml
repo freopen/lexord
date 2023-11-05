@@ -29,3 +29,9 @@ ignore_errors = true
 
 [tasks.fuzz-min]
 script = { file = "fuzz-min.sh" }
+
+[tasks.update-golden]
+cwd = "golden"
+command = "cargo"
+args = ["test"]
+env = { "UPDATE_GOLDEN" = "1" }

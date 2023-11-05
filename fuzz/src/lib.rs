@@ -1,8 +1,15 @@
 use arbitrary::{Arbitrary, Unstructured};
 use lexord::LexOrd;
-use std::cmp::Ordering;
+use proc_macro2::TokenStream;
+use quote::{format_ident, quote};
 
-fn serialize_type<'a, T: LexOrd + Arbitrary<'a>>(
+use std::{
+    cmp::Ordering,
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+};
+
+pub fn serialize_type<'a, T: LexOrd + Arbitrary<'a>>(
     data: &mut Unstructured<'a>,
     ser: &mut Vec<u8>,
 ) -> arbitrary::Result<T> {
@@ -23,6 +30,14 @@ macro_rules! count {
     ($head:tt $($tail:tt)*) => (1usize + count!($($tail)*));
 }
 
+#[derive(Debug, Default)]
+pub struct ParseResult {
+    pub ser_a: Vec<u8>,
+    pub ser_b: Vec<u8>,
+    pub arb_a: Vec<u8>,
+    pub arb_b: Vec<u8>,
+}
+
 pub trait FuzzType {
     fn test(
         &self,
@@ -34,10 +49,25 @@ pub trait FuzzType {
 
 macro_rules! gen_single_fns {
     ($($ty:ty)+) => {
+        #[derive(Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
         pub struct Single(u16);
 
+        #[automatically_derived]
+        impl Single {
+            fn type_name(&self) -> &'static str {
+                let mut type_id = self.0;
+                $(
+                    if type_id == 0 {
+                        return stringify!($ty);
+                    }
+                    type_id -= 1;
+                )*
+                unreachable!()
+            }
+        }
+
+        #[automatically_derived]
         impl FuzzType for Single {
-            #[allow(unused_assignments)]
             fn test(
                 &self,
                 data: &mut Unstructured,
@@ -55,20 +85,15 @@ macro_rules! gen_single_fns {
                 )+
                 unreachable!()
             }
+
         }
+
         impl std::fmt::Debug for Single {
-            #[allow(unused_assignments)]
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                let mut type_id = self.0;
-                $(
-                    if type_id == 0 {
-                        return write!(f, "{}", stringify!($ty));
-                    }
-                    type_id -= 1;
-                )+
-                unreachable!()
+                write!(f, "{}", self.type_name())
             }
         }
+
         impl<'a> Arbitrary<'a> for Single {
             fn arbitrary(data: &mut Unstructured<'a>) -> arbitrary::Result<Self> {
                 let type_id = data.arbitrary()?;
@@ -84,12 +109,41 @@ macro_rules! gen_single_fns {
 
 gen_single_fns!(u8 u16 u32 u64 u128 usize i8 i16 i32 i64 i128 isize f32 f64 String);
 
-#[derive(Debug, Arbitrary)]
+#[derive(Clone, Hash, Arbitrary, PartialEq, Eq, PartialOrd, Ord)]
 pub enum TypeDef {
     Single(Single),
     Vec(Box<TypeDef>),
     Tuple(Vec<TypeDef>),
     Enum(Vec<(i64, TypeDef)>),
+}
+
+impl std::fmt::Debug for TypeDef {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Single(single) => write!(f, "{single:?}"),
+            _ => unimplemented!(),
+        }
+    }
+}
+
+impl TypeDef {
+    pub fn type_hash(&self) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        self.hash(&mut hasher);
+        hasher.finish()
+    }
+    pub fn define_type(&self) -> TokenStream {
+        match self {
+            TypeDef::Single(single) => {
+                let type_alias = format_ident!("Type_{:016x}", self.type_hash());
+                let type_name = format_ident!("{}", single.type_name());
+                quote! {
+                    type #type_alias = #type_name;
+                }
+            }
+            _ => unimplemented!(),
+        }
+    }
 }
 
 impl FuzzType for TypeDef {

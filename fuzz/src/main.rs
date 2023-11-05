@@ -1,8 +1,6 @@
-mod types;
-
 use afl::fuzz;
 
-use crate::types::{FuzzType, TypeDef};
+use lexord_fuzz::{FuzzType, TypeDef};
 
 fn test_raw_bytes(data: &[u8]) -> arbitrary::Result<()> {
     let mut data = arbitrary::Unstructured::new(data);

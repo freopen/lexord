@@ -1,0 +1,15 @@
+[package]
+name = "golden"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+arbitrary = "1.3.2"
+lexord = { version = "0.1.0", path = ".." }
+lexord-fuzz = { version = "0.1.0", path = "../fuzz" }
+proc-macro2 = "1.0.65"
+quote = "1.0.30"
+syn = { version = "2.0.26", features = ["extra-traits"] }

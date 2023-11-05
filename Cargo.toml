@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace]
-members = ["lexord_derive", "fuzz"]
+members = ["lexord_derive", "fuzz", "golden"]
 
 [dependencies]
 thiserror = "1.0.40"
