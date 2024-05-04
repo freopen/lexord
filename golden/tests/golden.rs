@@ -6,11 +6,12 @@ use std::{
 };
 
 use golden::generate_goldens_test;
+use itertools::Itertools;
 use lexord::LexOrd;
 use lexord_fuzz::TypeDef;
 
 thread_local! {
-    pub static OUTPUT: RefCell<String> = RefCell::new(String::new());
+    pub static OUTPUT: RefCell<String> = const {RefCell::new(String::new())};
 }
 
 fn for_each_type_fn<T: Debug + LexOrd>(typedef: &TypeDef, mut values: Vec<(T, Vec<u8>)>) {
@@ -43,9 +44,16 @@ fn for_each_type_fn<T: Debug + LexOrd>(typedef: &TypeDef, mut values: Vec<(T, Ve
         let ser_string = ser
             .iter()
             .map(|byte| format!("{byte:02X}"))
-            .collect::<Vec<String>>()
+            .collect_vec()
             .join(" ");
-        lines.push(format!("| `{ser_string}` | `{value:#?}` |"));
+        let deser_string = format!("{value:#?}")
+            .chars()
+            .chunks(32)
+            .into_iter()
+            .map(|chunk| format!("`{}`", chunk.collect::<String>()))
+            .collect_vec()
+            .join("⮒<br>");
+        lines.push(format!("| `{ser_string}` | {deser_string} |"));
     }
     lines.dedup();
     OUTPUT.with_borrow_mut(|output| writeln!(output, "{}", lines.join("\n")).unwrap());

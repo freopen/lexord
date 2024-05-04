@@ -30,14 +30,6 @@ macro_rules! count {
     ($head:tt $($tail:tt)*) => (1usize + count!($($tail)*));
 }
 
-#[derive(Debug, Default)]
-pub struct ParseResult {
-    pub ser_a: Vec<u8>,
-    pub ser_b: Vec<u8>,
-    pub arb_a: Vec<u8>,
-    pub arb_b: Vec<u8>,
-}
-
 pub trait FuzzType {
     fn test(
         &self,
@@ -135,7 +127,7 @@ impl TypeDef {
     pub fn define_type(&self) -> TokenStream {
         match self {
             TypeDef::Single(single) => {
-                let type_alias = format_ident!("Type_{:016x}", self.type_hash());
+                let type_alias = format_ident!("T{:016x}", self.type_hash());
                 let type_name = format_ident!("{}", single.type_name());
                 quote! {
                     type #type_alias = #type_name;

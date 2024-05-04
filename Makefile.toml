@@ -6,7 +6,10 @@ command = "cargo"
 args = ["build"]
 
 [tasks.fuzz-prepare]
-script = ["cargo install --force cargo-afl", "cargo afl system-config"]
+script = [
+    "cargo install --force cargo-afl afl_runner",
+    "cargo afl system-config",
+]
 
 [tasks.fuzz-build]
 command = "cargo"
@@ -14,15 +17,11 @@ args = ["afl", "build"]
 cwd = "./fuzz"
 
 [tasks.fuzz-run]
-command = "cargo"
-args = [
-    "afl",
-    "fuzz",
-    "-i",
-    "fuzz/corpus",
-    "-o",
-    "fuzz/tmp_fuzz_wd",
-    "target/debug/lexord-fuzz",
+script = [
+    "aflr run -n 8 --input-dir fuzz/corpus --output-dir fuzz/tmp_fuzz_wd --target target/debug/lexord-fuzz --session-name afl-fuzz --detached",
+    "sleep 5",
+    "aflr tui fuzz/tmp_fuzz_wd",
+    "tmux kill-session -t afl-fuzz",
 ]
 dependencies = ["fuzz-build"]
 ignore_errors = true
@@ -35,3 +34,6 @@ cwd = "golden"
 command = "cargo"
 args = ["test"]
 env = { "UPDATE_GOLDEN" = "1" }
+
+[tasks.fuzz]
+run_task = { name = ["fuzz-run", "fuzz-min", "update-golden"] }

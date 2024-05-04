@@ -40,7 +40,7 @@ fn gen_test(for_each_type_fn: &Ident) -> TokenStream {
     let mut parse_fn_definitions = vec![];
     for typedef in typedefs {
         let hash = typedef.type_hash();
-        let type_ident = format_ident!("Type_{hash:016x}");
+        let type_ident = format_ident!("T{hash:016x}");
         let value_ident = format_ident!("v_{hash:016x}");
         let parse_fn_ident = format_ident!("parse_{hash:016x}");
         type_definitions.push(typedef.define_type());

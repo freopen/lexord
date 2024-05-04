@@ -25,13 +25,13 @@ fn test_struct() {
 #[test]
 fn test_enum() {
     #[derive(LexOrd, Debug)]
-    enum A {
+    enum E {
         A,
         B(u16, u16),
         C { a: u16, b: u16 },
     }
 
-    assert_snapshot!(encode(A::A), @"80");
-    assert_snapshot!(encode(A::B(1, 2)), @"81 81 82");
-    assert_snapshot!(encode(A::C { a: 1, b: 2 }), @"82 81 82");
+    assert_snapshot!(encode(E::A), @"80");
+    assert_snapshot!(encode(E::B(1, 2)), @"81 81 82");
+    assert_snapshot!(encode(E::C { a: 1, b: 2 }), @"82 81 82");
 }
