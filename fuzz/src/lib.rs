@@ -17,9 +17,6 @@ pub fn serialize_type<'a, T: LexOrd + Arbitrary<'a>>(
     let prev_pos = ser.len();
     result.to_write(ser).unwrap();
     let mut ser_slice = &ser[prev_pos..];
-    if ser_slice.len() > 32 {
-        return Err(arbitrary::Error::IncorrectFormat);
-    }
     let deser = T::from_read(&mut ser_slice).unwrap();
     assert_eq!(ser_slice.len(), 0);
     if let Some(ordering) = result.partial_cmp(&deser) {

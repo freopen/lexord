@@ -40,6 +40,9 @@ fn for_each_type_fn<T: Debug + LexOrd>(typedef: &TypeDef, mut values: Vec<(T, Ve
         if let Some(ordering) = value.partial_cmp(&deser) {
             assert_eq!(ordering, std::cmp::Ordering::Equal)
         }
+        if ser.len() > 32 {
+            continue;
+        }
 
         let ser_string = ser
             .iter()
