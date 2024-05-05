@@ -2,13 +2,7 @@ use std::io::{Read, Write};
 
 use crate::{LexOrd, LexOrdSer, Result};
 
-impl LexOrd for String {
-    fn from_read<R: Read>(reader: &mut R) -> Result<Self> {
-        Ok(String::from_utf8(Vec::<u8>::from_read(reader)?)?)
-    }
-}
-
-impl LexOrdSer for &str {
+impl LexOrdSer for str {
     fn to_write<W: Write>(&self, writer: &mut W) -> Result {
         self.as_bytes().to_write(writer)
     }
@@ -17,6 +11,12 @@ impl LexOrdSer for &str {
 impl LexOrdSer for String {
     fn to_write<W: Write>(&self, writer: &mut W) -> Result {
         self.as_bytes().to_write(writer)
+    }
+}
+
+impl LexOrd for String {
+    fn from_read<R: Read>(reader: &mut R) -> Result<Self> {
+        Ok(String::from_utf8(Vec::<u8>::from_read(reader)?)?)
     }
 }
 

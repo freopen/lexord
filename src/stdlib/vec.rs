@@ -5,19 +5,13 @@ use crate::{
     LexOrd, LexOrdSer, Result,
 };
 
-impl<T: LexOrd> LexOrd for Vec<T> {
-    fn from_read<R: Read>(reader: &mut R) -> Result<Self> {
-        ReadIter::new(reader).collect()
-    }
-}
-
-impl<T: LexOrdSer> LexOrdSer for &[T] {
+impl<T: LexOrdSer> LexOrdSer for [T] {
     fn to_write<W: Write>(&self, writer: &mut W) -> Result {
         write_iterator(writer, &mut self.iter())
     }
 }
 
-impl<T: LexOrdSer, const N: usize> LexOrdSer for &[T; N] {
+impl<T: LexOrdSer, const N: usize> LexOrdSer for [T; N] {
     fn to_write<W: Write>(&self, writer: &mut W) -> Result {
         write_iterator(writer, &mut self.iter())
     }
@@ -26,6 +20,12 @@ impl<T: LexOrdSer, const N: usize> LexOrdSer for &[T; N] {
 impl<T: LexOrdSer> LexOrdSer for Vec<T> {
     fn to_write<W: Write>(&self, writer: &mut W) -> Result {
         self.as_slice().to_write(writer)
+    }
+}
+
+impl<T: LexOrd> LexOrd for Vec<T> {
+    fn from_read<R: Read>(reader: &mut R) -> Result<Self> {
+        ReadIter::new(reader).collect()
     }
 }
 

@@ -30,10 +30,6 @@ impl From<Infallible> for Error {
 
 pub type Result<T = ()> = std::result::Result<T, Error>;
 
-pub trait LexOrd: Sized + LexOrdSer {
-    fn from_read<R: Read>(reader: &mut R) -> Result<Self>;
-}
-
 pub enum ObjectType {
     Default,
     CantStartWithZero,
@@ -55,4 +51,16 @@ pub trait LexOrdSer: PartialOrd {
     const OBJECT_TYPE: ObjectType = ObjectType::Default;
 
     fn to_write<W: Write>(&self, writer: &mut W) -> Result;
+}
+
+impl<T: LexOrdSer> LexOrdSer for &T {
+    const OBJECT_TYPE: ObjectType = T::OBJECT_TYPE;
+
+    fn to_write<W: Write>(&self, writer: &mut W) -> Result {
+        T::to_write(self, writer)
+    }
+}
+
+pub trait LexOrd: Sized + LexOrdSer {
+    fn from_read<R: Read>(reader: &mut R) -> Result<Self>;
 }
