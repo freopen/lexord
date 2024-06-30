@@ -20,6 +20,8 @@ pub enum Error {
     FromInt(#[from] std::num::TryFromIntError),
     #[error("Parse error: {0}")]
     Parse(String),
+    #[error("Internal error: {0}")]
+    Internal(String),
 }
 
 impl From<Infallible> for Error {
@@ -48,13 +50,17 @@ impl ObjectType {
 }
 
 pub trait LexOrdSer: PartialOrd {
-    const OBJECT_TYPE: ObjectType = ObjectType::Default;
+    fn object_type() -> ObjectType {
+        ObjectType::Default
+    }
 
     fn to_write<W: Write>(&self, writer: &mut W) -> Result;
 }
 
 impl<T: LexOrdSer> LexOrdSer for &T {
-    const OBJECT_TYPE: ObjectType = T::OBJECT_TYPE;
+    fn object_type() -> ObjectType {
+        T::object_type()
+    }
 
     fn to_write<W: Write>(&self, writer: &mut W) -> Result {
         T::to_write(self, writer)

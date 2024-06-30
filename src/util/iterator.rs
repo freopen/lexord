@@ -25,7 +25,7 @@ impl<'a, R: Read, T: LexOrd> Iterator for ReadIter<'a, R, T> {
     type Item = Result<T>;
     fn next(&mut self) -> Option<Self::Item> {
         (|| {
-            if let ObjectType::ZeroSized = T::OBJECT_TYPE {
+            if let ObjectType::ZeroSized = T::object_type() {
                 if self.zero_sized_count.is_none() {
                     self.zero_sized_count = Some(usize::from_read(self.reader)?);
                 }
@@ -38,7 +38,7 @@ impl<'a, R: Read, T: LexOrd> Iterator for ReadIter<'a, R, T> {
             } else {
                 let mut first = [0];
                 self.reader.read_exact(&mut first)?;
-                match (first[0], T::OBJECT_TYPE) {
+                match (first[0], T::object_type()) {
                     (0x00, _) => Ok(None),
                     (0x01, ObjectType::Default) => {
                         let mut second = [0];
@@ -62,43 +62,25 @@ impl<'a, R: Read, T: LexOrd> Iterator for ReadIter<'a, R, T> {
     }
 }
 
-struct IterWriter<'a, W: Write> {
-    writer: &'a mut W,
-    item_started: bool,
-}
-
-impl<'a, W: Write> Write for IterWriter<'a, W> {
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        if self.item_started {
-            self.writer.write(buf)
-        } else {
-            self.item_started = true;
-            match buf.first() {
-                None => return Ok(0),
-                Some(0x00 | 0x01) => self.writer.write_all(&[0x01])?,
-                _ => (),
-            }
-            self.writer.write(buf)
-        }
-    }
-    fn flush(&mut self) -> std::io::Result<()> {
-        self.writer.flush()
-    }
-}
-
 pub fn write_iterator<'a, T: LexOrdSer + 'a>(
     writer: &mut impl Write,
     iter: &mut impl Iterator<Item = &'a T>,
 ) -> Result {
-    match T::OBJECT_TYPE {
+    match T::object_type() {
         ObjectType::Default => {
-            let mut iter_writer = IterWriter {
-                writer,
-                item_started: false,
-            };
             for item in iter {
-                item.to_write(&mut iter_writer)?;
-                iter_writer.item_started = false;
+                let mut ser = vec![];
+                item.to_write(&mut ser)?;
+                match ser.first() {
+                    None => {
+                        return Err(Error::Internal(
+                            "Empty encoding for an item with default object type".to_string(),
+                        ))
+                    }
+                    Some(0x00 | 0x01) => writer.write_all(&[0x01])?,
+                    _ => (),
+                }
+                writer.write_all(&ser)?;
             }
             writer.write_all(&[0x00])?;
         }

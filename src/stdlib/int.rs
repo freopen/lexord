@@ -2,6 +2,25 @@ use std::io::{Read, Write};
 
 use crate::{Error, LexOrd, LexOrdSer, ObjectType, Result};
 
+impl LexOrdSer for bool {
+    fn object_type() -> ObjectType {
+        ObjectType::CantStartWithZero
+    }
+
+    fn to_write<W: Write>(&self, writer: &mut W) -> Result {
+        writer.write_all(&[*self as u8 + 0x80])?;
+        Ok(())
+    }
+}
+
+impl LexOrd for bool {
+    fn from_read<R: Read>(reader: &mut R) -> Result<Self> {
+        let mut buf = [0];
+        reader.read_exact(&mut buf)?;
+        Ok(buf[0] != 0x80)
+    }
+}
+
 impl LexOrdSer for u8 {
     fn to_write<W: Write>(&self, writer: &mut W) -> Result {
         writer.write_all(&[*self])?;
@@ -35,7 +54,9 @@ impl LexOrd for i8 {
 macro_rules! lexord_uint {
     ($t:ty) => {
         impl LexOrdSer for $t {
-            const OBJECT_TYPE: ObjectType = ObjectType::CantStartWithZero;
+            fn object_type() -> ObjectType {
+                ObjectType::CantStartWithZero
+            }
 
             fn to_write<W: Write>(&self, writer: &mut W) -> Result {
                 match *self as u128 {
@@ -96,7 +117,9 @@ lexord_uint!(usize);
 macro_rules! lexord_int {
     ($t:ty) => {
         impl LexOrdSer for $t {
-            const OBJECT_TYPE: ObjectType = ObjectType::CantStartWithZero;
+            fn object_type() -> ObjectType {
+                ObjectType::CantStartWithZero
+            }
 
             fn to_write<W: Write>(&self, writer: &mut W) -> Result {
                 match *self as i128 {

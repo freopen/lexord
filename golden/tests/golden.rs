@@ -5,31 +5,62 @@ use std::{
     path::Path,
 };
 
+use arbitrary::Arbitrary;
 use golden::generate_goldens_test;
 use itertools::Itertools;
 use lexord::LexOrd;
-use lexord_fuzz::TypeDef;
+use lexord_fuzz::AnyType;
 
-thread_local! {
-    pub static OUTPUT: RefCell<String> = const {RefCell::new(String::new())};
+struct TypeValue<T> {
+    type_descriptor: AnyType,
+    value: T,
+    ser: Vec<u8>,
 }
 
-fn for_each_type_fn<T: Debug + LexOrd>(typedef: &TypeDef, mut values: Vec<(T, Vec<u8>)>) {
-    values.sort_by(|a, b| a.1.cmp(&b.1));
+fn parse_fuzz_input<'a, T: Debug + LexOrd + Arbitrary<'a>>(
+    output: &mut Vec<TypeValue<T>>,
+    data: &'a [u8],
+    ser_a: &[u8],
+    ser_b: &[u8],
+) {
+    let mut data = arbitrary::Unstructured::new(data);
+    let type_descriptor = AnyType::random(&mut data).unwrap();
+    let a: T = data.arbitrary().unwrap();
+    let b: T = data.arbitrary().unwrap();
+    output.push(TypeValue {
+        type_descriptor: type_descriptor.clone(),
+        value: a,
+        ser: ser_a.to_vec(),
+    });
+    output.push(TypeValue {
+        type_descriptor,
+        value: b,
+        ser: ser_b.to_vec(),
+    })
+}
+
+fn test_type<'a, T: Debug + LexOrd + Arbitrary<'a>, W: Write>(
+    mut values: Vec<TypeValue<T>>,
+    f: &mut W,
+) {
+    values.sort_unstable_by(|a, b| a.ser.cmp(&b.ser));
     for i in 1..values.len() {
         let a = &values[i - 1];
         let b = &values[i];
-        if let Some(ordering) = a.0.partial_cmp(&b.0) {
-            assert_eq!(ordering, a.1.cmp(&b.1))
+        if let Some(ordering) = a.value.partial_cmp(&b.value) {
+            assert_eq!(ordering, a.ser.cmp(&b.ser))
         }
     }
-    OUTPUT.with_borrow_mut(|output| {
-        writeln!(output, "# {typedef:?}\n").unwrap();
-        writeln!(output, "| Bytes | Value |").unwrap();
-        writeln!(output, "| - | - |").unwrap();
-    });
+    writeln!(f, "# {}\n", values[0].type_descriptor).unwrap();
+    writeln!(f, "| Bytes | Value |").unwrap();
+    writeln!(f, "| - | - |").unwrap();
     let mut lines = vec![];
-    for (value, ser) in values {
+    for TypeValue {
+        type_descriptor: _,
+        value,
+        ser,
+    } in values
+    {
         let mut reser = vec![];
         value.to_write(&mut reser).unwrap();
         assert_eq!(ser, reser);
@@ -40,16 +71,15 @@ fn for_each_type_fn<T: Debug + LexOrd>(typedef: &TypeDef, mut values: Vec<(T, Ve
         if let Some(ordering) = value.partial_cmp(&deser) {
             assert_eq!(ordering, std::cmp::Ordering::Equal)
         }
-        if ser.len() > 32 {
-            continue;
-        }
-
+        // if ser.len() > 32 {
+        //     continue;
+        // }
         let ser_string = ser
             .iter()
             .map(|byte| format!("{byte:02X}"))
             .collect_vec()
             .join(" ");
-        let deser_string = format!("{value:#?}")
+        let deser_string = format!("{value:?}")
             .chars()
             .chunks(32)
             .into_iter()
@@ -59,31 +89,23 @@ fn for_each_type_fn<T: Debug + LexOrd>(typedef: &TypeDef, mut values: Vec<(T, Ve
         lines.push(format!("| `{ser_string}` | {deser_string} |"));
     }
     lines.dedup();
-    OUTPUT.with_borrow_mut(|output| writeln!(output, "{}", lines.join("\n")).unwrap());
+    for line in lines {
+        writeln!(f, "{line}").unwrap();
+    }
 }
-
-generate_goldens_test!(for_each_type_fn);
 
 #[test]
 fn test() {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join(Path::new("../fuzz/corpus"))
-        .canonicalize()
-        .unwrap();
-    let mut registry = Registry::default();
-    for corpus_item in path.read_dir().unwrap() {
-        let data = fs::read(corpus_item.unwrap().path()).unwrap();
-        let _ = registry.add(&data);
+    let mut output = String::new();
+
+    generate_goldens_test!();
+
+    println!("{output}");
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("golden.md");
+    if std::env::var("UPDATE_GOLDEN").is_ok() {
+        fs::write(path, output).unwrap();
+    } else {
+        let golden = fs::read_to_string(path).unwrap();
+        assert_eq!(golden, *output);
     }
-    registry.for_each_type();
-    OUTPUT.with_borrow(|output| {
-        println!("{output}");
-        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("golden.md");
-        if std::env::var("UPDATE_GOLDEN").is_ok() {
-            fs::write(path, output).unwrap();
-        } else {
-            let golden = fs::read_to_string(path).unwrap();
-            assert_eq!(golden, *output);
-        }
-    })
 }

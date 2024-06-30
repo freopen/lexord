@@ -12,13 +12,13 @@ script = [
 ]
 
 [tasks.fuzz-build]
+args = ["afl", "build", "--release"]
 command = "cargo"
-args = ["afl", "build"]
 cwd = "./fuzz"
 
 [tasks.fuzz-run]
 script = [
-    "aflr run -n 8 --input-dir fuzz/corpus --output-dir fuzz/tmp_fuzz_wd --target target/debug/lexord-fuzz --session-name afl-fuzz --detached",
+    "aflr run -n 8 --input-dir fuzz/corpus --output-dir fuzz/tmp_fuzz_wd --target target/release/lexord_fuzz --session-name afl-fuzz --detached",
     "sleep 5",
     "aflr tui fuzz/tmp_fuzz_wd",
     "tmux kill-session -t afl-fuzz",

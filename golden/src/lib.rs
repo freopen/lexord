@@ -1,110 +1,81 @@
-use std::{fs, path::Path};
+use std::{collections::BTreeMap, fs, path::Path};
 
-use lexord_fuzz::TypeDef;
-use proc_macro2::{Ident, TokenStream};
-use quote::{format_ident, quote};
-use syn::parse_macro_input;
+use itertools::Itertools;
+use lexord::LexOrdSer;
+use lexord_fuzz::{AnyType, AnyValue};
+use proc_macro2::TokenStream;
+use quote::quote;
 
 #[proc_macro]
-pub fn generate_goldens_test(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    proc_macro::TokenStream::from(gen_test(&parse_macro_input!(input as Ident)))
+pub fn generate_goldens_test(_input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    proc_macro::TokenStream::from(gen_test())
 }
 
-fn gen_test(for_each_type_fn: &Ident) -> TokenStream {
+struct FuzzInput {
+    data: Vec<u8>,
+    ser_a: Vec<u8>,
+    ser_b: Vec<u8>,
+}
+
+fn binary_literal(data: &[u8]) -> TokenStream {
+    quote!(&[#(#data),*])
+}
+
+fn gen_test() -> TokenStream {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join(Path::new("../fuzz/corpus"))
         .canonicalize()
         .unwrap();
-    let mut typedefs = vec![];
+    let mut types: BTreeMap<AnyType, Vec<FuzzInput>> = BTreeMap::new();
     for corpus_item in path.read_dir().unwrap() {
-        let data = fs::read(corpus_item.unwrap().path()).unwrap();
-        let mut data = arbitrary::Unstructured::new(&data);
-        let Ok(typedef) = data.arbitrary::<TypeDef>() else {
+        let raw_data = fs::read(corpus_item.unwrap().path()).unwrap();
+        let mut data = arbitrary::Unstructured::new(&raw_data);
+        let Ok(any_type) = AnyType::random(&mut data) else {
             continue;
         };
-        match typedef {
-            TypeDef::Single(_) => {}
-            _ => {
-                continue;
-            }
-        }
-        typedefs.push(typedef);
-    }
-    typedefs.sort();
-    typedefs.dedup();
-    let mut hashes = vec![];
-    let mut type_idents = vec![];
-    let mut value_idents = vec![];
-    let mut parse_fn_idents = vec![];
-    let mut type_definitions = vec![];
-    let mut parse_fn_definitions = vec![];
-    for typedef in typedefs {
-        let hash = typedef.type_hash();
-        let type_ident = format_ident!("T{hash:016x}");
-        let value_ident = format_ident!("v_{hash:016x}");
-        let parse_fn_ident = format_ident!("parse_{hash:016x}");
-        type_definitions.push(typedef.define_type());
-        parse_fn_definitions.push(match typedef {
-            TypeDef::Single(_) => quote! {
-                let mut ser = vec![];
-                let val: #type_ident = lexord_fuzz::serialize_type(data, &mut ser)?;
-                self.#value_ident.push((val, ser));
-                let mut ser = vec![];
-                let val: #type_ident = lexord_fuzz::serialize_type(data, &mut ser)?;
-                self.#value_ident.push((val, ser));
-                Ok(())
-            },
-            _ => unimplemented!(),
+        any_type.clone().set_current_type();
+        let Ok(a) = data.arbitrary::<AnyValue<0>>() else {
+            continue;
+        };
+        let mut ser_a = vec![];
+        a.to_write(&mut ser_a).unwrap();
+        let Ok(b) = data.arbitrary::<AnyValue<0>>() else {
+            continue;
+        };
+        let mut ser_b = vec![];
+        b.to_write(&mut ser_b).unwrap();
+
+        types.entry(any_type).or_default().push(FuzzInput {
+            data: raw_data,
+            ser_a,
+            ser_b,
         });
-        hashes.push(hash);
-        type_idents.push(type_ident);
-        value_idents.push(value_ident);
-        parse_fn_idents.push(parse_fn_ident);
     }
-    {
-        let mut hashes = hashes.clone();
-        hashes.sort();
-        for i in 1..hashes.len() {
-            assert_ne!(hashes[i - 1], hashes[i]);
-        }
+    let mut outputs = vec![];
+    for (any_type, inputs) in types {
+        let ty = any_type.as_syn();
+        let data = inputs.iter().map(|i| binary_literal(&i.data)).collect_vec();
+        let ser_a = inputs
+            .iter()
+            .map(|i| binary_literal(&i.ser_a))
+            .collect_vec();
+        let ser_b = inputs
+            .iter()
+            .map(|i| binary_literal(&i.ser_b))
+            .collect_vec();
+        outputs.push(quote! {
+            {
+                let mut values: Vec<TypeValue<#ty>> = vec![];
+                #(
+                    parse_fuzz_input(&mut values, #data, #ser_a, #ser_b);
+                )*
+                test_type(values, &mut output);
+            }
+        });
     }
     quote! {
-        #(#type_definitions)*
-
-        #[derive(Default)]
-        struct Registry {
-            types: std::collections::HashMap<u64, TypeDef>,
-            #(
-                #value_idents: Vec<(#type_idents, Vec<u8>)>,
-            )*
-        }
-
-        impl Registry {
-            #(
-                fn #parse_fn_idents(&mut self, data: &mut arbitrary::Unstructured<'_>) -> arbitrary::Result<()> {
-                    #parse_fn_definitions
-                }
-            )*
-            pub fn add(&mut self, raw: &[u8]) -> arbitrary::Result<()> {
-                let mut data = arbitrary::Unstructured::new(&raw);
-                let typedef: lexord_fuzz::TypeDef = data.arbitrary()?;
-                self.types.insert(typedef.type_hash(), typedef.clone());
-                match typedef {
-                    lexord_fuzz::TypeDef::Single(_) => {}
-                    _ => { return Err(arbitrary::Error::IncorrectFormat); }
-                };
-                match typedef.type_hash() {
-                    #(
-                        #hashes => self.#parse_fn_idents(&mut data),
-                    )*
-                    _ => unreachable!("Unexpected TypeDef hash"),
-                }
-            }
-            pub fn for_each_type(self) {
-                #(
-                    #for_each_type_fn(&self.types[&#hashes], self.#value_idents);
-                )*
-            }
-        }
+        #(
+            #outputs
+        )*
     }
 }

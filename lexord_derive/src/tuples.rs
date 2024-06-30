@@ -10,7 +10,9 @@ pub fn gen_lexord_for_tuples() -> TokenStream {
             .collect();
         quote! {
             impl<#( #types: LexOrdSer ),*> LexOrdSer for ( #( #types, )* ) {
-                const OBJECT_TYPE: ObjectType = ObjectType::sequence_type(&[#(#types::OBJECT_TYPE),*]);
+                fn object_type() -> ObjectType {
+                    ObjectType::sequence_type(&[#(#types::object_type()),*])
+                }
 
                 fn to_write<W: Write>(&self, writer: &mut W) -> Result {
                     #( #types::to_write(&self.#index, writer)?; )*
