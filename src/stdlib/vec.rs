@@ -2,7 +2,7 @@ use std::io::{Read, Write};
 
 use crate::{
     util::iterator::{write_iterator, ReadIter},
-    LexOrd, LexOrdSer, Result,
+    LexOrd, LexOrdSer, PrefixRead, Result,
 };
 
 impl<T: LexOrdSer> LexOrdSer for [T] {
@@ -24,7 +24,7 @@ impl<T: LexOrdSer> LexOrdSer for Vec<T> {
 }
 
 impl<T: LexOrd> LexOrd for Vec<T> {
-    fn from_read<R: Read>(reader: &mut R) -> Result<Self> {
+    fn from_read<R: Read>(reader: &mut PrefixRead<R>) -> Result<Self> {
         ReadIter::new(reader).collect()
     }
 }

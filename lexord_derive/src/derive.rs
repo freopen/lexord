@@ -1,14 +1,13 @@
-use std::collections::HashSet;
-
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::DeriveInput;
 
 pub fn derive_lexord(input: DeriveInput) -> TokenStream {
     let name = input.ident;
+    let generics = input.generics;
     let derives = match input.data {
-        syn::Data::Struct(data) => derive_struct(name, data),
-        syn::Data::Enum(data) => derive_enum(name, data),
+        syn::Data::Struct(data) => derive_struct(name, generics, data),
+        syn::Data::Enum(data) => derive_enum(name, generics, data),
         _ => unimplemented!(),
     };
     quote! {
@@ -18,7 +17,7 @@ pub fn derive_lexord(input: DeriveInput) -> TokenStream {
     }
 }
 
-fn derive_struct(name: syn::Ident, data: syn::DataStruct) -> TokenStream {
+fn derive_struct(name: syn::Ident, generics: syn::Generics, data: syn::DataStruct) -> TokenStream {
     let (fields, types): (Vec<_>, Vec<_>) = data
         .fields
         .into_iter()
@@ -32,11 +31,10 @@ fn derive_struct(name: syn::Ident, data: syn::DataStruct) -> TokenStream {
             (ident, field.ty)
         })
         .unzip();
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
     quote! {
         #[automatically_derived]
-        impl PartialEq for #name
-        where
-            #( #types: PartialEq ),*
+        impl #impl_generics PartialEq for #name #ty_generics #where_clause
         {
             fn eq(&self, other: &Self) -> bool {
                 #( (self.#fields == other.#fields) && )* true
@@ -44,9 +42,7 @@ fn derive_struct(name: syn::Ident, data: syn::DataStruct) -> TokenStream {
         }
 
         #[automatically_derived]
-        impl PartialOrd for #name
-        where
-            #( #types: PartialOrd ),*
+        impl #impl_generics PartialOrd for #name #ty_generics #where_clause
         {
             fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
                 #( match <#types as PartialOrd>::partial_cmp(&self.#fields, &other.#fields)? {
@@ -58,14 +54,13 @@ fn derive_struct(name: syn::Ident, data: syn::DataStruct) -> TokenStream {
         }
 
         #[automatically_derived]
-        impl ::lexord::LexOrdSer for #name
-        where
-            #( #types: ::lexord::LexOrdSer ),*
+        impl #impl_generics ::lexord::LexOrdSer for #name #ty_generics #where_clause
         {
-            const OBJECT_TYPE: ::lexord::ObjectType =
+            fn object_type() -> ::lexord::ObjectType {
                 ::lexord::ObjectType::sequence_type(&[
-                    #(<#types as ::lexord::LexOrdSer>::OBJECT_TYPE,)*
-                ]);
+                    #(<#types as ::lexord::LexOrdSer>::object_type(),)*
+                ])
+            }
 
             fn to_write<W: std::io::Write>(&self, writer: &mut W) -> ::lexord::Result {
                 #( <#types as ::lexord::LexOrdSer>::to_write(&self.#fields, writer)?; )*
@@ -74,11 +69,9 @@ fn derive_struct(name: syn::Ident, data: syn::DataStruct) -> TokenStream {
         }
 
         #[automatically_derived]
-        impl ::lexord::LexOrd for #name
-        where
-            #( #types: ::lexord::LexOrd ),*
+        impl #impl_generics ::lexord::LexOrd for #name #ty_generics #where_clause
         {
-            fn from_read<R: std::io::Read>(reader: &mut R) -> ::lexord::Result<Self> {
+            fn from_read<R: std::io::Read>(reader: &mut ::lexord::PrefixRead<R>) -> ::lexord::Result<Self> {
                 Ok(#name {
                     #( #fields: <#types as ::lexord::LexOrd>::from_read(reader)?, )*
                 })
@@ -87,8 +80,7 @@ fn derive_struct(name: syn::Ident, data: syn::DataStruct) -> TokenStream {
     }
 }
 
-fn derive_enum(name: syn::Ident, data: syn::DataEnum) -> TokenStream {
-    let mut all_types = HashSet::new();
+fn derive_enum(name: syn::Ident, generics: syn::Generics, data: syn::DataEnum) -> TokenStream {
     let mut eq_hands = vec![];
     let mut cmp_hands = vec![];
     let mut write_hands = vec![];
@@ -102,7 +94,6 @@ fn derive_enum(name: syn::Ident, data: syn::DataEnum) -> TokenStream {
         let mut a_field_names = vec![];
         let mut b_field_names = vec![];
         for (index, field) in variant.fields.iter().enumerate() {
-            all_types.insert(&field.ty);
             field_types.push(&field.ty);
             let field_name = match &field.ident {
                 Some(ident) => quote! { #ident },
@@ -156,13 +147,11 @@ fn derive_enum(name: syn::Ident, data: syn::DataEnum) -> TokenStream {
             }
         });
     }
-    let all_types: Vec<_> = all_types.into_iter().collect();
 
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
     quote! {
         #[automatically_derived]
-        impl PartialEq for #name
-        where
-            #( #all_types: PartialEq ),*
+        impl #impl_generics PartialEq for #name #ty_generics #where_clause
         {
             fn eq(&self, other: &Self) -> bool {
                 match (self, other) {
@@ -173,9 +162,7 @@ fn derive_enum(name: syn::Ident, data: syn::DataEnum) -> TokenStream {
         }
 
         #[automatically_derived]
-        impl PartialOrd for #name
-        where
-            #( #all_types: PartialOrd ),*
+        impl #impl_generics PartialOrd for #name #ty_generics #where_clause
         {
             fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
                 match (self, other) {
@@ -186,12 +173,11 @@ fn derive_enum(name: syn::Ident, data: syn::DataEnum) -> TokenStream {
         }
 
         #[automatically_derived]
-        impl ::lexord::LexOrdSer for #name
-        where
-            #( #all_types: ::lexord::LexOrdSer ),*
+        impl #impl_generics ::lexord::LexOrdSer for #name #ty_generics #where_clause
         {
-            const OBJECT_TYPE: ::lexord::ObjectType =
-                ::lexord::ObjectType::CantStartWithZero;
+            fn object_type() -> ::lexord::ObjectType {
+                ::lexord::ObjectType::CantStartWithZero
+            }
             fn to_write<W: std::io::Write>(&self, writer: &mut W) -> ::lexord::Result {
                 match self {
                     #( #write_hands )*
@@ -201,11 +187,9 @@ fn derive_enum(name: syn::Ident, data: syn::DataEnum) -> TokenStream {
         }
 
         #[automatically_derived]
-        impl ::lexord::LexOrd for #name
-        where
-            #( #all_types: ::lexord::LexOrd ),*
+        impl #impl_generics ::lexord::LexOrd for #name #ty_generics #where_clause
         {
-            fn from_read<R: std::io::Read>(reader: &mut R) -> ::lexord::Result<Self> {
+            fn from_read<R: std::io::Read>(reader: &mut ::lexord::PrefixRead<R>) -> ::lexord::Result<Self> {
                 Ok(match <usize as ::lexord::LexOrd>::from_read(reader)? {
                     #( #read_hands )*
                     var_index => {

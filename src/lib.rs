@@ -32,6 +32,7 @@ impl From<Infallible> for Error {
 
 pub type Result<T = ()> = std::result::Result<T, Error>;
 
+#[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Clone, Copy)]
 pub enum ObjectType {
     Default,
     CantStartWithZero,
@@ -67,6 +68,40 @@ impl<T: LexOrdSer> LexOrdSer for &T {
     }
 }
 
+pub struct PrefixRead<R: Read> {
+    pub prefix: Option<u8>,
+    pub read: R,
+}
+
+impl<R: Read> From<R> for PrefixRead<R> {
+    fn from(read: R) -> Self {
+        Self { prefix: None, read }
+    }
+}
+
+impl<R: Read> Read for PrefixRead<R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        if let Some(prefix) = self.prefix {
+            buf[0] = prefix;
+            self.prefix = None;
+            Ok(1)
+        } else {
+            self.read.read(buf)
+        }
+    }
+}
+
+impl<R: Read> PrefixRead<R> {
+    pub fn push(&mut self, prefix: u8) {
+        assert!(
+            self.prefix.is_none(),
+            "Attempting to push a second prefix: {prefix:02X} -> PrefixRead({:02X})",
+            self.prefix.unwrap()
+        );
+        self.prefix = Some(prefix);
+    }
+}
+
 pub trait LexOrd: Sized + LexOrdSer {
-    fn from_read<R: Read>(reader: &mut R) -> Result<Self>;
+    fn from_read<R: Read>(reader: &mut PrefixRead<R>) -> Result<Self>;
 }

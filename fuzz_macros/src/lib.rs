@@ -50,6 +50,7 @@ fn define_anyvalue_impl(input: Punctuated<syn::Type, syn::Token![,]>) -> TokenSt
 
         impl<'a, const CHILD_INDEX: usize> arbitrary::Arbitrary<'a> for AnyValue<CHILD_INDEX> {
             fn arbitrary(data: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
+                log_for_golden(data, CHILD_INDEX);
                 Self::with(|type_id: u16| {
                     Ok(Self(Box::new(
                         match type_id {
@@ -80,7 +81,7 @@ fn define_anyvalue_impl(input: Punctuated<syn::Type, syn::Token![,]>) -> TokenSt
         }
 
         impl<const CHILD_INDEX: usize> lexord::LexOrd for AnyValue<CHILD_INDEX> {
-            fn from_read<R: std::io::Read>(reader: &mut R) -> lexord::Result<Self> {
+            fn from_read<R: std::io::Read>(reader: &mut lexord::PrefixRead<R>) -> lexord::Result<Self> {
                 Self::with(|type_id: u16| {
                     match type_id {
                         #(#i => Ok(Self(Box::new(AnyValueEnum::#variant(<#ty as lexord::LexOrd>::from_read(reader)?)))),)*

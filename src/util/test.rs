@@ -1,13 +1,16 @@
-use std::{cmp::Ordering, fmt::Debug};
+use std::{cmp::Ordering, fmt::Debug, io::Read};
 
 use crate::LexOrd;
 
 pub fn encode<T: LexOrd + Debug>(value: T) -> String {
     let mut bytes = vec![];
     value.to_write(&mut bytes).unwrap();
-    let mut bytes_slice = bytes.as_slice();
-    let value_from_buf = T::from_read(&mut bytes_slice).unwrap();
-    assert_eq!(bytes_slice, &[], "Buffer is not consumed completely");
+    let mut bytes_read = bytes.as_slice().into();
+    let value_from_buf = T::from_read(&mut bytes_read).unwrap();
+    assert!(
+        bytes_read.bytes().next().is_none(),
+        "Buffer is not consumed completely"
+    );
     if let Some(cmp) = value.partial_cmp(&value_from_buf) {
         assert_eq!(
             cmp,

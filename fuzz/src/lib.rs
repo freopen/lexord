@@ -1,38 +1,58 @@
+use lexord::LexOrd;
 use lexord_fuzz_macros::define_anyvalue;
 use quote::ToTokens;
 use std::{
-    cell::Cell,
+    cell::RefCell,
     fmt::{Debug, Display},
     mem::take,
 };
 
-#[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord)]
+#[derive(Debug, Clone, LexOrd, Eq, Ord)]
 pub struct AnyType {
-    type_id: u16,
-    children: Vec<AnyType>,
+    pub type_id: u16,
+    pub children: Vec<AnyType>,
 }
 thread_local! {
-    static CURRENT_TYPE: Cell<Vec<AnyType>> = const { Cell::new(vec![]) }
+    static CURRENT_TYPE: RefCell<Vec<AnyType>> = Default::default();
 }
 
-const MAX_TYPE_SIZE: usize = 10;
+#[cfg(feature = "golden")]
+thread_local! {
+    pub static TYPE_TO_UNSTRUCTURED: std::cell::RefCell<std::collections::BTreeMap<AnyType,Vec<Vec<u8>>>> = Default::default();
+}
+#[cfg(feature = "golden")]
+fn log_for_golden(data: &arbitrary::Unstructured, child_index: usize) {
+    let any_type = CURRENT_TYPE.with_borrow(|t| t[child_index].clone());
+    let unstructured = data.peek_bytes(data.len()).unwrap().to_vec();
+    TYPE_TO_UNSTRUCTURED.with_borrow_mut(|map| {
+        map.entry(any_type).or_default().push(unstructured);
+    })
+}
+#[cfg(not(feature = "golden"))]
+fn log_for_golden(_data: &arbitrary::Unstructured, _child_index: usize) {}
 
 impl AnyType {
-    fn size(&self) -> usize {
-        1 + self.children.iter().map(|c| c.size()).sum::<usize>()
-    }
     pub fn random(data: &mut arbitrary::Unstructured) -> arbitrary::Result<Self> {
+        const MAX_SIZE: usize = 5;
+        let mut size_left = MAX_SIZE;
+        Self::random_recursive(data, &mut size_left)
+    }
+    pub fn random_recursive(
+        data: &mut arbitrary::Unstructured,
+        size_left: &mut usize,
+    ) -> arbitrary::Result<Self> {
+        if *size_left == 0 {
+            return Err(arbitrary::Error::IncorrectFormat);
+        }
+        *size_left -= 1;
         let type_id: u16 = data.arbitrary()?;
         if type_id >= NUM_PARAMS.len() as u16 {
             return Err(arbitrary::Error::IncorrectFormat);
         }
         let children = (0..NUM_PARAMS[type_id as usize])
-            .map(|_| AnyType::random(data))
+            .map(|_| AnyType::random_recursive(data, size_left))
             .collect::<arbitrary::Result<Vec<_>>>()?;
         let output = AnyType { type_id, children };
-        if output.size() > MAX_TYPE_SIZE {
-            return Err(arbitrary::Error::IncorrectFormat);
-        }
         Ok(output)
     }
     pub fn set_current_type(self) {
@@ -96,4 +116,5 @@ define_anyvalue!(
     (_,),
     (_, _),
     (_, _, _),
+    Vec<_>,
 );

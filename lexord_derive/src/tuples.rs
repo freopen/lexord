@@ -21,7 +21,7 @@ pub fn gen_lexord_for_tuples() -> TokenStream {
             }
 
             impl<#( #types: LexOrd ),*> LexOrd for ( #( #types, )* ) {
-                fn from_read<R: Read>(reader: &mut R) -> Result<Self> {
+                fn from_read<R: Read>(reader: &mut PrefixRead<R>) -> Result<Self> {
                     Ok(( #( #types::from_read(reader)?, )* ))
                 }
             }

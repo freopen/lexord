@@ -1,6 +1,6 @@
 use std::io::{Read, Write};
 
-use crate::{LexOrd, LexOrdSer, Result};
+use crate::{LexOrd, LexOrdSer, PrefixRead, Result};
 
 impl LexOrdSer for str {
     fn to_write<W: Write>(&self, writer: &mut W) -> Result {
@@ -15,7 +15,7 @@ impl LexOrdSer for String {
 }
 
 impl LexOrd for String {
-    fn from_read<R: Read>(reader: &mut R) -> Result<Self> {
+    fn from_read<R: Read>(reader: &mut PrefixRead<R>) -> Result<Self> {
         Ok(String::from_utf8(Vec::<u8>::from_read(reader)?)?)
     }
 }

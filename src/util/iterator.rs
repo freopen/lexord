@@ -3,16 +3,16 @@ use std::{
     marker::PhantomData,
 };
 
-use crate::{Error, LexOrd, LexOrdSer, ObjectType, Result};
+use crate::{Error, LexOrd, LexOrdSer, ObjectType, PrefixRead, Result};
 
 pub struct ReadIter<'a, R: Read, T: LexOrd> {
-    reader: &'a mut R,
+    reader: &'a mut PrefixRead<R>,
     zero_sized_count: Option<usize>,
     _phantom: PhantomData<T>,
 }
 
 impl<'a, R: Read, T: LexOrd> ReadIter<'a, R, T> {
-    pub fn new(reader: &'a mut R) -> ReadIter<'a, R, T> {
+    pub fn new(reader: &'a mut PrefixRead<R>) -> ReadIter<'a, R, T> {
         ReadIter {
             reader,
             zero_sized_count: None,
@@ -25,7 +25,7 @@ impl<'a, R: Read, T: LexOrd> Iterator for ReadIter<'a, R, T> {
     type Item = Result<T>;
     fn next(&mut self) -> Option<Self::Item> {
         (|| {
-            if let ObjectType::ZeroSized = T::object_type() {
+            if T::object_type() == ObjectType::ZeroSized {
                 if self.zero_sized_count.is_none() {
                     self.zero_sized_count = Some(usize::from_read(self.reader)?);
                 }
@@ -48,12 +48,12 @@ impl<'a, R: Read, T: LexOrd> Iterator for ReadIter<'a, R, T> {
                                 "Iterator element can't start with 0x01{0x02+}".to_string(),
                             ));
                         }
-                        let mut reader = second.chain(self.reader.by_ref());
-                        Ok(Some(T::from_read(&mut reader)?))
+                        self.reader.push(second[0]);
+                        Ok(Some(T::from_read(self.reader)?))
                     }
                     _ => {
-                        let mut reader = first.chain(self.reader.by_ref());
-                        Ok(Some(T::from_read(&mut reader)?))
+                        self.reader.push(first[0]);
+                        Ok(Some(T::from_read(self.reader)?))
                     }
                 }
             }

@@ -1,6 +1,6 @@
 use std::io::{Read, Write};
 
-use crate::{Error, LexOrd, LexOrdSer, ObjectType, Result};
+use crate::{Error, LexOrd, LexOrdSer, ObjectType, PrefixRead, Result};
 
 impl LexOrdSer for bool {
     fn object_type() -> ObjectType {
@@ -14,7 +14,7 @@ impl LexOrdSer for bool {
 }
 
 impl LexOrd for bool {
-    fn from_read<R: Read>(reader: &mut R) -> Result<Self> {
+    fn from_read<R: Read>(reader: &mut PrefixRead<R>) -> Result<Self> {
         let mut buf = [0];
         reader.read_exact(&mut buf)?;
         Ok(buf[0] != 0x80)
@@ -29,7 +29,7 @@ impl LexOrdSer for u8 {
 }
 
 impl LexOrd for u8 {
-    fn from_read<R: Read>(reader: &mut R) -> Result<Self> {
+    fn from_read<R: Read>(reader: &mut PrefixRead<R>) -> Result<Self> {
         let mut buf = [0];
         reader.read_exact(&mut buf)?;
         Ok(buf[0])
@@ -44,7 +44,7 @@ impl LexOrdSer for i8 {
 }
 
 impl LexOrd for i8 {
-    fn from_read<R: Read>(reader: &mut R) -> Result<Self> {
+    fn from_read<R: Read>(reader: &mut PrefixRead<R>) -> Result<Self> {
         let mut buf = [0];
         reader.read_exact(&mut buf)?;
         Ok(buf[0] as i8 ^ i8::MIN)
@@ -77,7 +77,7 @@ macro_rules! lexord_uint {
             }
         }
         impl LexOrd for $t {
-            fn from_read<R: Read>(reader: &mut R) -> Result<Self> {
+            fn from_read<R: Read>(reader: &mut PrefixRead<R>) -> Result<Self> {
                 let mut buf = [0u8; 16];
                 reader.read_exact(&mut buf[..1])?;
                 match buf[0] {
@@ -141,7 +141,7 @@ macro_rules! lexord_int {
             }
         }
         impl LexOrd for $t {
-            fn from_read<R: Read>(reader: &mut R) -> Result<Self> {
+            fn from_read<R: Read>(reader: &mut PrefixRead<R>) -> Result<Self> {
                 let mut buf = [0u8; 16];
                 reader.read_exact(&mut buf[..1])?;
                 match buf[0] {
