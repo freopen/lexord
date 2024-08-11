@@ -15,8 +15,8 @@ fn test_raw_bytes(data: &[u8]) -> arbitrary::Result<()> {
     let mut ser_b = vec![];
     b.to_write(&mut ser_b).unwrap();
 
-    let deser_a = AnyValue::<0>::from_read(&mut ser_a.as_slice().into()).unwrap();
-    let deser_b = AnyValue::<0>::from_read(&mut ser_b.as_slice().into()).unwrap();
+    let deser_a = AnyValue::<0>::from_read(&mut ser_a.as_slice()).unwrap();
+    let deser_b = AnyValue::<0>::from_read(&mut ser_b.as_slice()).unwrap();
 
     if let Some(ordering) = a.partial_cmp(&deser_a) {
         assert_eq!(

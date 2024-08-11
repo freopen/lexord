@@ -2,20 +2,16 @@ use std::io::{Read, Write};
 
 use lexord_derive::gen_lexord_for_tuples;
 
-use crate::{LexOrd, LexOrdSer, ObjectType, PrefixRead, Result};
+use crate::{LexOrd, LexOrdSer, Result};
 
 impl LexOrdSer for () {
-    fn object_type() -> ObjectType {
-        ObjectType::ZeroSized
-    }
-
-    fn to_write<W: Write>(&self, _writer: &mut W) -> Result {
+    fn to_write(&self, _writer: &mut impl Write) -> Result {
         Ok(())
     }
 }
 
 impl LexOrd for () {
-    fn from_read<R: Read>(_reader: &mut PrefixRead<R>) -> Result<Self> {
+    fn from_read(_reader: &mut impl Read) -> Result<Self> {
         Ok(())
     }
 }

@@ -32,76 +32,67 @@ impl From<Infallible> for Error {
 
 pub type Result<T = ()> = std::result::Result<T, Error>;
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Clone, Copy)]
-pub enum ObjectType {
-    Default,
-    CantStartWithZero,
-    ZeroSized,
+struct SeqWriter<'a, W: Write> {
+    writer: &'a mut W,
+    start: bool,
 }
 
-impl ObjectType {
-    pub const fn sequence_type(seq: &[ObjectType]) -> ObjectType {
-        match seq {
-            [] => ObjectType::ZeroSized,
-            [ObjectType::CantStartWithZero, ..] => ObjectType::CantStartWithZero,
-            [ObjectType::Default, ..] => ObjectType::Default,
-            [ObjectType::ZeroSized, rest @ ..] => ObjectType::sequence_type(rest),
+impl<'a, W: Write> SeqWriter<'a, W> {
+    fn new(writer: &'a mut W) -> Self {
+        SeqWriter {
+            writer,
+            start: true,
+        }
+    }
+}
+
+impl<'a, W: Write> Write for SeqWriter<'a, W> {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        if buf.is_empty() {
+            return Ok(0);
+        }
+        if self.start && buf[0] <= 0x01 {
+            self.writer.write_all(&[0x01])?;
+        }
+        self.start = false;
+        self.writer.write(buf)
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.writer.flush()
+    }
+}
+
+impl<'a, W: Write> Drop for SeqWriter<'a, W> {
+    fn drop(&mut self) {
+        if self.start {
+            self.writer.write_all(&[0x01]).unwrap();
         }
     }
 }
 
 pub trait LexOrdSer: PartialOrd {
-    fn object_type() -> ObjectType {
-        ObjectType::Default
+    fn to_write(&self, writer: &mut impl Write) -> Result;
+    fn to_write_seq(&self, writer: &mut impl Write) -> Result {
+        self.to_write(&mut SeqWriter::new(writer))
     }
-
-    fn to_write<W: Write>(&self, writer: &mut W) -> Result;
 }
 
 impl<T: LexOrdSer> LexOrdSer for &T {
-    fn object_type() -> ObjectType {
-        T::object_type()
-    }
-
-    fn to_write<W: Write>(&self, writer: &mut W) -> Result {
+    fn to_write(&self, writer: &mut impl Write) -> Result {
         T::to_write(self, writer)
     }
-}
-
-pub struct PrefixRead<R: Read> {
-    pub prefix: Option<u8>,
-    pub read: R,
-}
-
-impl<R: Read> From<R> for PrefixRead<R> {
-    fn from(read: R) -> Self {
-        Self { prefix: None, read }
-    }
-}
-
-impl<R: Read> Read for PrefixRead<R> {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        if let Some(prefix) = self.prefix {
-            buf[0] = prefix;
-            self.prefix = None;
-            Ok(1)
-        } else {
-            self.read.read(buf)
-        }
-    }
-}
-
-impl<R: Read> PrefixRead<R> {
-    pub fn push(&mut self, prefix: u8) {
-        assert!(
-            self.prefix.is_none(),
-            "Attempting to push a second prefix: {prefix:02X} -> PrefixRead({:02X})",
-            self.prefix.unwrap()
-        );
-        self.prefix = Some(prefix);
+    fn to_write_seq(&self, writer: &mut impl Write) -> Result {
+        T::to_write_seq(self, writer)
     }
 }
 
 pub trait LexOrd: Sized + LexOrdSer {
-    fn from_read<R: Read>(reader: &mut PrefixRead<R>) -> Result<Self>;
+    fn from_read(reader: &mut impl Read) -> Result<Self>;
+    fn from_read_seq(first: u8, reader: &mut impl Read) -> Result<Self> {
+        if first == 0x01 {
+            Self::from_read(reader)
+        } else {
+            Self::from_read(&mut [first].chain(reader))
+        }
+    }
 }

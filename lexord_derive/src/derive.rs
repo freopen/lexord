@@ -31,6 +31,8 @@ fn derive_struct(name: syn::Ident, generics: syn::Generics, data: syn::DataStruc
             (ident, field.ty)
         })
         .unzip();
+    let (first_field, rest_fields) = fields.split_first().unwrap();
+    let (first_type, rest_types) = types.split_first().unwrap();
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
     quote! {
         #[automatically_derived]
@@ -56,14 +58,13 @@ fn derive_struct(name: syn::Ident, generics: syn::Generics, data: syn::DataStruc
         #[automatically_derived]
         impl #impl_generics ::lexord::LexOrdSer for #name #ty_generics #where_clause
         {
-            fn object_type() -> ::lexord::ObjectType {
-                ::lexord::ObjectType::sequence_type(&[
-                    #(<#types as ::lexord::LexOrdSer>::object_type(),)*
-                ])
-            }
-
-            fn to_write<W: std::io::Write>(&self, writer: &mut W) -> ::lexord::Result {
+            fn to_write(&self, writer: &mut impl std::io::Write) -> ::lexord::Result {
                 #( <#types as ::lexord::LexOrdSer>::to_write(&self.#fields, writer)?; )*
+                Ok(())
+            }
+            fn to_write_seq(&self, writer: &mut impl std::io::Write) -> ::lexord::Result {
+                <#first_type as ::lexord::LexOrdSer>::to_write_seq(&self.#first_field, writer)?;
+                #( <#rest_types as ::lexord::LexOrdSer>::to_write(&self.#rest_fields, writer)?; )*
                 Ok(())
             }
         }
@@ -71,9 +72,15 @@ fn derive_struct(name: syn::Ident, generics: syn::Generics, data: syn::DataStruc
         #[automatically_derived]
         impl #impl_generics ::lexord::LexOrd for #name #ty_generics #where_clause
         {
-            fn from_read<R: std::io::Read>(reader: &mut ::lexord::PrefixRead<R>) -> ::lexord::Result<Self> {
+            fn from_read(reader: &mut impl std::io::Read) -> ::lexord::Result<Self> {
                 Ok(#name {
                     #( #fields: <#types as ::lexord::LexOrd>::from_read(reader)?, )*
+                })
+            }
+            fn from_read_seq(first: u8, reader: &mut impl std::io::Read) -> ::lexord::Result<Self> {
+                Ok(#name {
+                    #first_field: <#first_type as ::lexord::LexOrd>::from_read_seq(first, reader)?,
+                    #( #rest_fields: <#rest_types as ::lexord::LexOrd>::from_read(reader)?, )*
                 })
             }
         }
@@ -175,21 +182,21 @@ fn derive_enum(name: syn::Ident, generics: syn::Generics, data: syn::DataEnum) -
         #[automatically_derived]
         impl #impl_generics ::lexord::LexOrdSer for #name #ty_generics #where_clause
         {
-            fn object_type() -> ::lexord::ObjectType {
-                ::lexord::ObjectType::CantStartWithZero
-            }
-            fn to_write<W: std::io::Write>(&self, writer: &mut W) -> ::lexord::Result {
+            fn to_write(&self, writer: &mut impl std::io::Write) -> ::lexord::Result {
                 match self {
                     #( #write_hands )*
                 }
                 Ok(())
+            }
+            fn to_write_seq(&self, writer: &mut impl std::io::Write) -> ::lexord::Result {
+                self.to_write(writer)
             }
         }
 
         #[automatically_derived]
         impl #impl_generics ::lexord::LexOrd for #name #ty_generics #where_clause
         {
-            fn from_read<R: std::io::Read>(reader: &mut ::lexord::PrefixRead<R>) -> ::lexord::Result<Self> {
+            fn from_read(reader: &mut impl std::io::Read) -> ::lexord::Result<Self> {
                 Ok(match <usize as ::lexord::LexOrd>::from_read(reader)? {
                     #( #read_hands )*
                     var_index => {
@@ -199,6 +206,9 @@ fn derive_enum(name: syn::Ident, generics: syn::Generics, data: syn::DataEnum) -
                         unreachable!()
                     }
                 })
+            }
+            fn from_read_seq(first: u8, reader: &mut impl std::io::Read) -> ::lexord::Result<Self> {
+                Self::from_read(&mut <&[u8] as std::io::Read>::chain(&[first], reader))
             }
         }
     }

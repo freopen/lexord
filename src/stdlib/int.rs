@@ -1,35 +1,37 @@
 use std::io::{Read, Write};
 
-use crate::{Error, LexOrd, LexOrdSer, ObjectType, PrefixRead, Result};
+use crate::{Error, LexOrd, LexOrdSer, Result};
 
 impl LexOrdSer for bool {
-    fn object_type() -> ObjectType {
-        ObjectType::CantStartWithZero
-    }
-
-    fn to_write<W: Write>(&self, writer: &mut W) -> Result {
+    fn to_write(&self, writer: &mut impl Write) -> Result {
         writer.write_all(&[*self as u8 + 0x80])?;
         Ok(())
+    }
+    fn to_write_seq(&self, writer: &mut impl Write) -> Result {
+        self.to_write(writer)
     }
 }
 
 impl LexOrd for bool {
-    fn from_read<R: Read>(reader: &mut PrefixRead<R>) -> Result<Self> {
+    fn from_read(reader: &mut impl Read) -> Result<Self> {
         let mut buf = [0];
         reader.read_exact(&mut buf)?;
         Ok(buf[0] != 0x80)
     }
+    fn from_read_seq(first: u8, reader: &mut impl Read) -> Result<Self> {
+        Self::from_read(&mut [first].chain(reader))
+    }
 }
 
 impl LexOrdSer for u8 {
-    fn to_write<W: Write>(&self, writer: &mut W) -> Result {
+    fn to_write(&self, writer: &mut impl Write) -> Result {
         writer.write_all(&[*self])?;
         Ok(())
     }
 }
 
 impl LexOrd for u8 {
-    fn from_read<R: Read>(reader: &mut PrefixRead<R>) -> Result<Self> {
+    fn from_read(reader: &mut impl Read) -> Result<Self> {
         let mut buf = [0];
         reader.read_exact(&mut buf)?;
         Ok(buf[0])
@@ -37,14 +39,14 @@ impl LexOrd for u8 {
 }
 
 impl LexOrdSer for i8 {
-    fn to_write<W: Write>(&self, writer: &mut W) -> Result {
+    fn to_write(&self, writer: &mut impl Write) -> Result {
         writer.write_all(&[(self ^ i8::MIN) as u8])?;
         Ok(())
     }
 }
 
 impl LexOrd for i8 {
-    fn from_read<R: Read>(reader: &mut PrefixRead<R>) -> Result<Self> {
+    fn from_read(reader: &mut impl Read) -> Result<Self> {
         let mut buf = [0];
         reader.read_exact(&mut buf)?;
         Ok(buf[0] as i8 ^ i8::MIN)
@@ -54,11 +56,7 @@ impl LexOrd for i8 {
 macro_rules! lexord_uint {
     ($t:ty) => {
         impl LexOrdSer for $t {
-            fn object_type() -> ObjectType {
-                ObjectType::CantStartWithZero
-            }
-
-            fn to_write<W: Write>(&self, writer: &mut W) -> Result {
+            fn to_write(&self, writer: &mut impl Write) -> Result {
                 match *self as u128 {
                     0..=0x3F => writer.write_all(&[*self as u8 | 0x80])?,
                     0x40..=0x1FFF => writer.write_all(&(*self as u16 | 0xC000).to_be_bytes())?,
@@ -75,9 +73,12 @@ macro_rules! lexord_uint {
                 }
                 Ok(())
             }
+            fn to_write_seq(&self, writer: &mut impl Write) -> Result {
+                self.to_write(writer)
+            }
         }
         impl LexOrd for $t {
-            fn from_read<R: Read>(reader: &mut PrefixRead<R>) -> Result<Self> {
+            fn from_read(reader: &mut impl Read) -> Result<Self> {
                 let mut buf = [0u8; 16];
                 reader.read_exact(&mut buf[..1])?;
                 match buf[0] {
@@ -104,6 +105,9 @@ macro_rules! lexord_uint {
                     _ => Err(Error::Parse(format!("Unsupported VarInt prefix: {buf:?}"))),
                 }
             }
+            fn from_read_seq(first: u8, reader: &mut impl Read) -> Result<Self> {
+                Self::from_read(&mut [first].chain(reader))
+            }
         }
     };
 }
@@ -117,11 +121,7 @@ lexord_uint!(usize);
 macro_rules! lexord_int {
     ($t:ty) => {
         impl LexOrdSer for $t {
-            fn object_type() -> ObjectType {
-                ObjectType::CantStartWithZero
-            }
-
-            fn to_write<W: Write>(&self, writer: &mut W) -> Result {
+            fn to_write(&self, writer: &mut impl Write) -> Result {
                 match *self as i128 {
                     0..=i128::MAX => (*self as u128).to_write(writer)?,
                     -0x40..=-0x01 => writer.write_all(&(*self as i8 & 0x7F).to_be_bytes())?,
@@ -139,9 +139,12 @@ macro_rules! lexord_int {
                 }
                 Ok(())
             }
+            fn to_write_seq(&self, writer: &mut impl Write) -> Result {
+                self.to_write(writer)
+            }
         }
         impl LexOrd for $t {
-            fn from_read<R: Read>(reader: &mut PrefixRead<R>) -> Result<Self> {
+            fn from_read(reader: &mut impl Read) -> Result<Self> {
                 let mut buf = [0u8; 16];
                 reader.read_exact(&mut buf[..1])?;
                 match buf[0] {
@@ -187,6 +190,9 @@ macro_rules! lexord_int {
                     }
                     _ => Err(Error::Parse(format!("Unsupported VarInt prefix: {buf:?}"))),
                 }
+            }
+            fn from_read_seq(first: u8, reader: &mut impl Read) -> Result<Self> {
+                Self::from_read(&mut [first].chain(reader))
             }
         }
     };

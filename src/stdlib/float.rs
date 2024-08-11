@@ -1,9 +1,9 @@
 use std::io::{Read, Write};
 
-use crate::{LexOrd, LexOrdSer, PrefixRead, Result};
+use crate::{LexOrd, LexOrdSer, Result};
 
 impl LexOrdSer for f32 {
-    fn to_write<W: Write>(&self, writer: &mut W) -> Result {
+    fn to_write(&self, writer: &mut impl Write) -> Result {
         if self == &0.0 {
             writer.write_all(&[0x80, 0x00, 0x00, 0x00])?;
             return Ok(());
@@ -16,7 +16,7 @@ impl LexOrdSer for f32 {
 }
 
 impl LexOrd for f32 {
-    fn from_read<R: Read>(reader: &mut PrefixRead<R>) -> Result<Self> {
+    fn from_read(reader: &mut impl Read) -> Result<Self> {
         let mut buf = [0u8; 4];
         reader.read_exact(&mut buf)?;
         let mut bits = u32::from_be_bytes(buf);
@@ -26,7 +26,7 @@ impl LexOrd for f32 {
 }
 
 impl LexOrdSer for f64 {
-    fn to_write<W: Write>(&self, writer: &mut W) -> Result {
+    fn to_write(&self, writer: &mut impl Write) -> Result {
         if self == &0.0 {
             writer.write_all(&[0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])?;
             return Ok(());
@@ -39,7 +39,7 @@ impl LexOrdSer for f64 {
 }
 
 impl LexOrd for f64 {
-    fn from_read<R: Read>(reader: &mut PrefixRead<R>) -> Result<Self> {
+    fn from_read(reader: &mut impl Read) -> Result<Self> {
         let mut buf = [0u8; 8];
         reader.read_exact(&mut buf)?;
         let mut bits = u64::from_be_bytes(buf);

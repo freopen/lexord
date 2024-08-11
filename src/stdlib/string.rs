@@ -1,21 +1,21 @@
 use std::io::{Read, Write};
 
-use crate::{LexOrd, LexOrdSer, PrefixRead, Result};
+use crate::{LexOrd, LexOrdSer, Result};
 
 impl LexOrdSer for str {
-    fn to_write<W: Write>(&self, writer: &mut W) -> Result {
+    fn to_write(&self, writer: &mut impl Write) -> Result {
         self.as_bytes().to_write(writer)
     }
 }
 
 impl LexOrdSer for String {
-    fn to_write<W: Write>(&self, writer: &mut W) -> Result {
+    fn to_write(&self, writer: &mut impl Write) -> Result {
         self.as_bytes().to_write(writer)
     }
 }
 
 impl LexOrd for String {
-    fn from_read<R: Read>(reader: &mut PrefixRead<R>) -> Result<Self> {
+    fn from_read(reader: &mut impl Read) -> Result<Self> {
         Ok(String::from_utf8(Vec::<u8>::from_read(reader)?)?)
     }
 }

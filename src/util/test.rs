@@ -5,7 +5,7 @@ use crate::LexOrd;
 pub fn encode<T: LexOrd + Debug>(value: T) -> String {
     let mut bytes = vec![];
     value.to_write(&mut bytes).unwrap();
-    let mut bytes_read = bytes.as_slice().into();
+    let mut bytes_read = bytes.as_slice();
     let value_from_buf = T::from_read(&mut bytes_read).unwrap();
     assert!(
         bytes_read.bytes().next().is_none(),

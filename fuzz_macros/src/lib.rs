@@ -63,28 +63,35 @@ fn define_anyvalue_impl(input: Punctuated<syn::Type, syn::Token![,]>) -> TokenSt
         }
 
         impl<const CHILD_INDEX: usize> lexord::LexOrdSer for AnyValue<CHILD_INDEX> {
-            fn object_type() -> lexord::ObjectType {
+            fn to_write(&self, writer: &mut impl std::io::Write) -> lexord::Result {
                 Self::with(|type_id: u16| {
-                    match type_id {
-                        #(#i => <#ty as lexord::LexOrdSer>::object_type(),)*
-                        _ => unreachable!(),
+                    match &*self.0 {
+                        #(AnyValueEnum::#variant(value) => <#ty as lexord::LexOrdSer>::to_write(value, writer),)*
                     }
                 })
             }
-            fn to_write<W: std::io::Write>(&self, writer: &mut W) -> lexord::Result {
+            fn to_write_seq(&self, writer: &mut impl std::io::Write) -> lexord::Result {
                 Self::with(|type_id: u16| {
                     match &*self.0 {
-                        #(AnyValueEnum::#variant(value) => <#ty as lexord::LexOrdSer>::to_write(value,writer),)*
+                        #(AnyValueEnum::#variant(value) => <#ty as lexord::LexOrdSer>::to_write_seq(value, writer),)*
                     }
                 })
             }
         }
 
         impl<const CHILD_INDEX: usize> lexord::LexOrd for AnyValue<CHILD_INDEX> {
-            fn from_read<R: std::io::Read>(reader: &mut lexord::PrefixRead<R>) -> lexord::Result<Self> {
+            fn from_read(reader: &mut impl std::io::Read) -> lexord::Result<Self> {
                 Self::with(|type_id: u16| {
                     match type_id {
                         #(#i => Ok(Self(Box::new(AnyValueEnum::#variant(<#ty as lexord::LexOrd>::from_read(reader)?)))),)*
+                        _ => unreachable!(),
+                    }
+                })
+            }
+            fn from_read_seq(first: u8, reader: &mut impl std::io::Read) -> lexord::Result<Self> {
+                Self::with(|type_id: u16| {
+                    match type_id {
+                        #(#i => Ok(Self(Box::new(AnyValueEnum::#variant(<#ty as lexord::LexOrd>::from_read_seq(first, reader)?)))),)*
                         _ => unreachable!(),
                     }
                 })

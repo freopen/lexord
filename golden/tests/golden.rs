@@ -17,7 +17,8 @@ struct TypeValue<T> {
 }
 
 fn test_type<T: Debug + LexOrd + for<'a> Arbitrary<'a>>(f: &mut impl Write, any_type: &[u8]) {
-    let any_type = AnyType::from_read(&mut any_type.into()).unwrap();
+    let mut reader = any_type;
+    let any_type = AnyType::from_read(&mut reader).unwrap();
     any_type.clone().set_current_type();
     let data_vec = lexord_fuzz::TYPE_TO_UNSTRUCTURED
         .with_borrow_mut(|type_to_unstructured| type_to_unstructured.remove(&any_type));
@@ -59,7 +60,7 @@ fn test_type<T: Debug + LexOrd + for<'a> Arbitrary<'a>>(f: &mut impl Write, any_
         value.to_write(&mut reser).unwrap();
         assert_eq!(ser, reser);
 
-        let mut reser_read = reser.as_slice().into();
+        let mut reser_read = reser.as_slice();
         let deser = T::from_read(&mut reser_read).unwrap();
         assert!(reser_read.bytes().next().is_none());
         if let Some(ordering) = value.partial_cmp(&deser) {
