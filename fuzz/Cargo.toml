@@ -8,7 +8,7 @@ publish = false
 golden = []
 
 [dependencies]
-afl = "0.15.7"
+afl = "0.18.2"
 arbitrary = { version = "1.3.2", features = ["derive"] }
 itertools = "0.13.0"
 lexord = { version = "0.1.0", path = ".." }

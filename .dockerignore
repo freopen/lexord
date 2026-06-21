@@ -1,0 +1,8 @@
+.git
+.agents
+.codex
+target
+**/target
+fuzz/tmp_*
+fuzz/tmp_fuzz_wd
+Cargo.lock

@@ -1,0 +1,40 @@
+{
+  "name": "lexord",
+  "build": {
+    "context": "..",
+    "dockerfile": "Dockerfile",
+    "args": {
+      "RUST_TOOLCHAIN": "nightly"
+    }
+  },
+  "remoteUser": "vscode",
+  "updateRemoteUserUID": true,
+  "workspaceFolder": "/workspaces/lexord",
+  "mounts": [
+    "source=lexord-codex,target=/home/vscode/.codex,type=volume"
+  ],
+  "securityOpt": ["no-new-privileges"],
+  "capAdd": ["SYS_PTRACE"],
+  "containerEnv": {
+    "AFL_I_DONT_CARE_ABOUT_MISSING_CRASHES": "1"
+  },
+  "runArgs": [
+    "--pids-limit=1024"
+  ],
+  "init": true,
+  "postCreateCommand": "cargo fetch && cargo make build",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "tamasfe.even-better-toml",
+        "vadimcn.vscode-lldb",
+        "fill-labs.dependi"
+      ],
+      "settings": {
+        "rust-analyzer.check.command": "clippy",
+        "rust-analyzer.cargo.allTargets": true
+      }
+    }
+  }
+}

@@ -5,24 +5,13 @@ default_to_workspace = false
 command = "cargo"
 args = ["build"]
 
-[tasks.fuzz-prepare]
-script = [
-    "cargo install --force cargo-afl afl_runner",
-    "cargo afl system-config",
-]
-
 [tasks.fuzz-build]
 args = ["afl", "build", "--release"]
 command = "cargo"
 cwd = "./fuzz"
 
 [tasks.fuzz-run]
-script = [
-    "aflr run -n 8 --input-dir fuzz/corpus --output-dir fuzz/tmp_fuzz_wd --target target/release/lexord_fuzz --session-name afl-fuzz --detached",
-    "sleep 5",
-    "aflr tui fuzz/tmp_fuzz_wd",
-    "tmux kill-session -t afl-fuzz",
-]
+script = ["aflr run", "tmux kill-session -t afl-fuzz"]
 dependencies = ["fuzz-build"]
 ignore_errors = true
 

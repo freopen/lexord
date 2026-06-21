@@ -1,0 +1,16 @@
+[target]
+path = "target/release/lexord_fuzz"
+[coverage]
+[afl_cfg]
+runners = 8
+afl_binary = "/home/vscode/.local/share/afl.rs/AFLplusplus/afl-fuzz"
+seed_dir = "fuzz/corpus"
+solution_dir = "fuzz/tmp_fuzz_wd"
+mode = "MultipleCores"
+[session]
+dry_run = false
+name = "afl-fuzz"
+runner = "tmux"
+[misc]
+tui = true
+detached = false
